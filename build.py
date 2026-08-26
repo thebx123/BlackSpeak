@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
 Modern Black Suite - Unified Build & Packaging System
-Reads settings from .env, synchronizes version and update URLs,
-compiles the unified C++ plugin with MSVC x64, and generates ModernBlack.ts3_addon.
+Reads settings from .env, synchronizes version across headers, manifests,
+and version.json, compiles the unified C++ plugin with MSVC x64,
+and generates ModernBlack.ts3_addon.
 """
 
 import os
 import re
 import sys
+import json
 import zipfile
 import subprocess
 
@@ -16,7 +18,8 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 def parse_env(env_path):
     config = {
         'PLUGIN_VERSION': '1.0.0',
-        'UPDATE_URL': 'https://raw.githubusercontent.com/TheBx123/BlackSpeak/main/version.json'
+        'UPDATE_URL': 'https://raw.githubusercontent.com/TheBx123/BlackSpeak/main/version.json',
+        'CHANGELOG': ''
     }
     target_env = env_path if os.path.exists(env_path) else os.path.join(PROJECT_ROOT, '.env.example')
     if os.path.exists(target_env):
@@ -50,6 +53,34 @@ def update_ini_version(ini_path, version):
     with open(ini_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
     print(f"[*] Synchronized {os.path.relpath(ini_path, PROJECT_ROOT)} -> Version {version}")
+
+def update_version_json(file_path, version, custom_changelog=''):
+    if not os.path.exists(file_path):
+        return
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception:
+        data = {}
+
+    data['version'] = version
+
+    # Automatically derive the release download URL matching the repo and new tag
+    existing_url = data.get('download_url', '')
+    if existing_url and '/releases/download/' in existing_url:
+        base_url = existing_url.split('/releases/download/')[0]
+        data['download_url'] = f"{base_url}/releases/download/v{version}/ModernBlack.ts3_addon"
+    else:
+        data['download_url'] = f"https://github.com/TheBx123/BlackSpeak/releases/download/v{version}/ModernBlack.ts3_addon"
+
+    if custom_changelog:
+        data['changelog'] = custom_changelog
+    elif 'changelog' not in data or not data['changelog']:
+        data['changelog'] = f"BlackSpeak Suite v{version} release with latest improvements."
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+    print(f"[*] Synchronized {os.path.relpath(file_path, PROJECT_ROOT)} -> Version {version} (download_url: v{version})")
 
 def find_vcvars64():
     candidates = [
@@ -129,6 +160,7 @@ def main():
     config = parse_env(env_path)
     version = config['PLUGIN_VERSION']
     update_url = config['UPDATE_URL']
+    changelog = config.get('CHANGELOG', '')
 
     print(f"[*] Target Version : {version}")
     print(f"[*] Update URL     : {update_url}")
@@ -139,7 +171,10 @@ def main():
     # 2. Synchronize INI manifest
     update_ini_version(os.path.join(PROJECT_ROOT, 'package.ini'), version)
 
-    # 3. Compile C++ plugin
+    # 3. Synchronize version.json (metadata for auto-updater)
+    update_version_json(os.path.join(PROJECT_ROOT, 'version.json'), version, changelog)
+
+    # 4. Compile C++ plugin
     vcvars = find_vcvars64()
     if not vcvars:
         print("[!] Error: Visual Studio vcvars64.bat not found!")
@@ -149,7 +184,7 @@ def main():
         print("[!] Build failed during compilation.")
         sys.exit(1)
 
-    # 4. Package unified addon
+    # 5. Package unified addon
     package_addon(version)
 
     print("\n===================================================")
