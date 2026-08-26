@@ -432,23 +432,51 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     }
 
     g_updateState.status = UPDATE_STATUS_DOWNLOADED;
-    snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded! Close TS3 to finish installing.");
+    snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded! Ready to install.");
     if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
 
     wchar_t msgBoxText[512];
     swprintf_s(msgBoxText,
-        L"Update package v%S downloaded successfully!\n\n"
-        L"IMPORTANT: Please CLOSE TeamSpeak 3 now, then click 'Install' on the installer window to complete the update.",
+        L"Update package v%S has been downloaded successfully!\n\n"
+        L"TeamSpeak 3 must be closed to allow replacing the active plugin files.\n\n"
+        L"Would you like to close TeamSpeak 3 and launch the installer now?",
         g_updateState.latestVersion);
 
-    MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+    int userChoice = MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
         msgBoxText,
         L"Modern Black Auto-Updater",
-        MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+        MB_YESNO | MB_ICONQUESTION | MB_TOPMOST);
 
-    HINSTANCE hRes = ShellExecuteA(NULL, "open", destFile, NULL, NULL, SW_SHOWNORMAL);
-    if ((INT_PTR)hRes <= 32) {
-        ShellExecuteA(NULL, "open", g_updateState.downloadUrl, NULL, NULL, SW_SHOWNORMAL);
+    if (userChoice == IDYES) {
+        char tempDir[MAX_PATH];
+        GetTempPathA(MAX_PATH, tempDir);
+        char batPath[MAX_PATH];
+        snprintf(batPath, sizeof(batPath), "%sts3_install_update.bat", tempDir);
+
+        FILE* fpBat = NULL;
+        fopen_s(&fpBat, batPath, "w");
+        if (fpBat) {
+            fprintf(fpBat, "@echo off\n");
+            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
+            fprintf(fpBat, "taskkill /IM ts3client_win64.exe /F >nul 2>&1\n");
+            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
+            fprintf(fpBat, "start \"\" \"%s\"\n", destFile);
+            fprintf(fpBat, "del \"%%~f0\" >nul 2>&1\n");
+            fclose(fpBat);
+        }
+
+        ShellExecuteA(NULL, "open", batPath, NULL, NULL, SW_HIDE);
+
+        HWND topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
+        if (topTS3 && IsWindow(topTS3)) {
+            PostMessage(topTS3, WM_CLOSE, 0, 0);
+        }
+
+        Sleep(400);
+        ExitProcess(0);
+    } else {
+        snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded. Ready to install later.");
+        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
     }
 
     return 0;
