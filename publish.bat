@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 title BlackSpeak - Auto Publisher to GitHub
 
 echo ===================================================
-echo   BlackSpeak - Automated Build & GitHub Publisher
+echo   BlackSpeak - Automated Build ^& GitHub Publisher
 echo ===================================================
 echo.
 
