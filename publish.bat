@@ -27,11 +27,15 @@ git diff --cached --quiet
 if %ERRORLEVEL% EQU 0 (
     echo [*] No new file changes detected to commit.
 ) else (
+    set "ENV_FILE=%~dp0.env"
+    if not exist "!ENV_FILE!" set "ENV_FILE=%~dp0.env.example"
     set "VERSION=1.0.0"
-    for /f "tokens=1,2 delims==" %%a in (%~dp0.env) do (
-        set "KEY=%%a"
-        set "VAL=%%b"
-        if "!KEY!"=="PLUGIN_VERSION" set "VERSION=!VAL!"
+    if exist "!ENV_FILE!" (
+        for /f "tokens=1,2 delims==" %%a in (!ENV_FILE!) do (
+            set "KEY=%%a"
+            set "VAL=%%b"
+            if "!KEY!"=="PLUGIN_VERSION" set "VERSION=!VAL!"
+        )
     )
     
     set "COMMIT_MSG=Release v!VERSION!: Automated build and update sync"

@@ -16,10 +16,11 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 def parse_env(env_path):
     config = {
         'PLUGIN_VERSION': '1.0.0',
-        'UPDATE_URL': 'https://raw.githubusercontent.com/Coretify/TS3-ModernBlack/main/version.json'
+        'UPDATE_URL': 'https://raw.githubusercontent.com/TheBx123/BlackSpeak/main/version.json'
     }
-    if os.path.exists(env_path):
-        with open(env_path, 'r', encoding='utf-8', errors='ignore') as f:
+    target_env = env_path if os.path.exists(env_path) else os.path.join(PROJECT_ROOT, '.env.example')
+    if os.path.exists(target_env):
+        with open(target_env, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):

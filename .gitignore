@@ -1,3 +1,8 @@
+# Environment local overrides (Keep local secrets private)
+.env
+.env.local
+*.env
+
 # Compiled Object and Library files
 *.obj
 *.exp
@@ -9,9 +14,6 @@
 scratch/
 *.tmp
 *.temp
-
-# Environment local overrides (use .env.example for repository template)
-# .env
 
 # Operating System Files
 Thumbs.db
