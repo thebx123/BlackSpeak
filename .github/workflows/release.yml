@@ -1,0 +1,39 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create Release and Upload ModernBlack.ts3_addon
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ModernBlack.ts3_addon
+          name: BlackSpeak Suite ${{ github.ref_name }}
+          body: |
+            ### BlackSpeak TeamSpeak 3 Suite ${{ github.ref_name }}
+            
+            **Installation:**
+            1. Download `ModernBlack.ts3_addon` below.
+            2. Double-click the file to install into TeamSpeak 3 automatically.
+            
+            **Features:**
+            - Obsidian Dark Theme (`#060709`)
+            - Windows 11 Native Dark Titlebars
+            - Live Accent & Theme Customizer
+            - Integrated Auto-Update Subsystem
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
