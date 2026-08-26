@@ -432,8 +432,19 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     }
 
     g_updateState.status = UPDATE_STATUS_DOWNLOADED;
-    snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded! Launching installer...");
+    snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded! Close TS3 to finish installing.");
     if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+
+    wchar_t msgBoxText[512];
+    swprintf_s(msgBoxText,
+        L"Update package v%S downloaded successfully!\n\n"
+        L"IMPORTANT: Please CLOSE TeamSpeak 3 now, then click 'Install' on the installer window to complete the update.",
+        g_updateState.latestVersion);
+
+    MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+        msgBoxText,
+        L"Modern Black Auto-Updater",
+        MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 
     HINSTANCE hRes = ShellExecuteA(NULL, "open", destFile, NULL, NULL, SW_SHOWNORMAL);
     if ((INT_PTR)hRes <= 32) {
