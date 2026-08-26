@@ -1,0 +1,9 @@
+/*
+ * TeamSpeak 3 Modern Black Qt StyleSheet - Windows Integration
+ * Designed by Coretify Studio
+ */
+
+QMainWindow, QDialog {
+    background-color: #060709;
+    color: #FFFFFF;
+}

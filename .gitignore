@@ -1,0 +1,19 @@
+# Compiled Object and Library files
+*.obj
+*.exp
+*.lib
+*.pdb
+*.ilk
+
+# Temporary / Scratch files
+scratch/
+*.tmp
+*.temp
+
+# Environment local overrides (use .env.example for repository template)
+# .env
+
+# Operating System Files
+Thumbs.db
+Desktop.ini
+.DS_Store

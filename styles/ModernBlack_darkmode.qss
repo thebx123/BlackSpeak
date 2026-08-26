@@ -1,0 +1,13 @@
+/*
+ * TeamSpeak 3 Modern Black Qt StyleSheet - Dark Mode
+ * Designed by Coretify Studio
+ */
+
+ImprovedTabBar::tab {
+    color: #FFFFFF;
+}
+
+QMainWindow, QDialog {
+    background-color: #060709;
+    color: #FFFFFF;
+}
