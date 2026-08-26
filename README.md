@@ -1,70 +1,73 @@
-# تم و پلاگین مدرن تیم‌اسپیک ۳ (TeamSpeak 3 Modern Black Suite)
-طراحی‌شده توسط استودیو **Coretify Studio**
+# Modern Black TeamSpeak 3 Suite
+Designed and developed by **Coretify Studio**
 
 ---
 
-## 📦 پکیج همه‌کاره و یکپارچه (All-In-One Addon)
+## 📦 All-In-One Distribution Package
 
-تمامی اجزای تم، پلاگین تایتل‌بار ویندوز ۱۱، سیستم تغییر رنگ زنده و موتور آپدیت خودکار در یک پکیج واحد ادغام شده‌اند:
+All theme elements, Windows 11 dark titlebar support, live accent customizer, and background auto-update subsystem are unified into a single distribution package:
 
 ### 📥 **[`ModernBlack.ts3_addon`](file:///g:/Projects/TS3-ModernBlack/ModernBlack.ts3_addon)**
-تنها با یک دابل‌کلیک روی این فایل، تمام بخش‌ها به طور خودکار در تیم‌اسپیک ۳ نصب و فعال می‌شوند:
-1. **تم مشکی مدرن (Obsidian Dark Theme):** رنگ پایه `#060709`، خط گرادیانی زیر منوبار، اسکرول‌بار کپسولی باریک و طراحی اختصاصی چت و پنل‌ها.
-2. **تایتل‌بار مشکی ویندوز ۱۱ (Native Dark TitleBar):** هماهنگ‌سازی نوار عنوان پنجره‌ها با رنگ تیره سیستم‌عامل با فریم اختصاصی.
-3. **کاستومایزر زنده رنگ و اکسنت (Theme Customizer):** انتخاب فوری پالت‌های رنگی و تغییر آنی تم بدون نیاز به ریستارت.
-4. **سیستم بررسی و آپدیت خودکار (Auto-Updater):** چک کردن نسخه سرور در پس‌زمینه و امکان آپدیت با یک کلیک.
+Double-clicking this package automatically installs and activates the complete suite in TeamSpeak 3:
+1. **Obsidian Dark Theme:** Base background color `#060709`, glowing gradient accent line below the menu bar, slim rounded pill scrollbars, and customized chat & channel panels.
+2. **Windows 11 Native Dark TitleBar:** Hooks into Windows 11 DWM to render native dark titlebars and sleek dark frames across all dialogs and popup windows.
+3. **Live Accent & Theme Customizer:** Instant color palette switching and real-time stylesheet updates without requiring a client restart.
+4. **Auto-Updater Engine:** Non-blocking background update checks against GitHub releases with one-click direct update installation.
 
 ---
 
-## ⚙️ تنظیمات نسخه و آپدیت خودکار (`.env`)
+## ⚙️ Configuration & Auto-Update (`.env`)
 
-تنظیمات نسخه و سرور آپدیت به سادگی از طریق فایل [`.env`](file:///g:/Projects/TS3-ModernBlack/.env) کنترل می‌شوند:
+Version number and update server endpoint are easily managed in the root [`.env`](file:///g:/Projects/TS3-ModernBlack/.env) file:
 
 ```env
-# Suite & Plugin Version (فرمت SemVer)
+# Suite & Plugin Version (SemVer format)
 PLUGIN_VERSION=1.0.0
 
-# آدرس فایل JSON متادیتای آپدیت (روی گیتهاب یا سرور اختصاصی)
-UPDATE_URL=https://raw.githubusercontent.com/Coretify/TS3-ModernBlack/main/version.json
+# Update Metadata JSON URL (GitHub Raw URL or dedicated server)
+UPDATE_URL=https://raw.githubusercontent.com/thebx123/BlackSpeak/main/version.json
 ```
 
-### ساختار فایل `version.json` روی سرور / گیت‌هاب:
+### Server `version.json` Metadata Schema:
 ```json
 {
   "version": "1.0.0",
-  "download_url": "https://github.com/Coretify/TS3-ModernBlack/releases/download/v1.0.0/ModernBlack.ts3_addon",
-  "changelog": "Unified Modern Black Suite: Sleek Obsidian Dark Theme, Windows 11 Dark Titlebars, Live Accent Customizer, and Auto-Update support in 1 package."
+  "download_url": "https://github.com/thebx123/BlackSpeak/releases/download/v1.0.0/ModernBlack.ts3_addon",
+  "changelog": "Initial release of BlackSpeak: Sleek Obsidian Dark Theme, Windows 11 Dark Titlebars, Live Accent Customizer, and Auto-Update support in 1 package."
 }
 ```
 
 ---
 
-## 🛠️ نحوه بیلد و کامپایل خودکار
+## 🛠️ Automated Build & Packaging System
 
-برای کامپایل مجدد پلاگین و ایجاد بسته نصبی `ModernBlack.ts3_addon`، یکی از دستورات زیر را اجرا کنید:
+To compile the C++ plugin and generate the unified `ModernBlack.ts3_addon` package:
 
-1. **اجرای مستقیم اسکریپت پایتون:**
+1. **Run Python build script:**
    ```bash
    python build.py
    ```
-2. **یا دابل‌کلیک روی فایل [`build.bat`](file:///g:/Projects/TS3-ModernBlack/build.bat)**.
+2. **Or double-click the Windows shortcut [`build.bat`](file:///g:/Projects/TS3-ModernBlack/build.bat)**.
 
 ---
 
-## 📁 ساختار منظم پروژه:
+## 📁 Repository Directory Structure:
 ```
-├── .env                                # تنظیمات نسخه و لینک سرور آپدیت
-├── .env.example                        # فایل نمونه کانفیگ
-├── version.json                        # الگوی متادیتای آنلاین سرور
-├── package.ini                         # مانیفست اددان تیم‌اسپیک ۳
-├── build.py                            # سیستم یکپارچه بیلد، کامپایل و پکیجینگ
-├── build.bat                           # کلید میانبر اجرای سریع بیلد در ویندوز
-├── ModernBlack.ts3_addon               # بسته نهایی قابل نصب در TeamSpeak 3
-├── styles/                             # فایل‌های استایل QSS و قالب‌های TPL
-└── plugins/                            # سورس و فایل DLL پلاگین یکپارچه
-    ├── modern_black.cpp                # سورس C++ (تایتل‌بار + کاستومایزر + آپدیتر)
-    ├── modern_black_win64.dll          # فایل DLL نهایی کامپایل‌شده 64-بیتی
-    ├── qss_template.h                  # قالب داخلی استایل تم
-    ├── version_config.h                # هدر تولید شده از .env
-    └── build_plugin.bat                # اسکریپت کامپایل تکی پلاگین
+├── .agents/                            # Coding standards, rules, and customization configs
+│   ├── AGENTS.md                       # Core repository rules (English-only standard)
+│   └── rules/language.md               # Language and localization constraints
+├── .env                                # Local environment config (Version & Update URL)
+├── .env.example                        # Template environment config
+├── version.json                        # Server update metadata template
+├── package.ini                         # TeamSpeak 3 Addon manifest
+├── build.py                            # Unified compiler & packaging pipeline
+├── build.bat                           # 1-Click build launcher for Windows
+├── ModernBlack.ts3_addon               # Distribution package for TeamSpeak 3
+├── styles/                             # QSS stylesheets and TPL templates
+└── plugins/                            # Unified C++ plugin source and binary
+    ├── modern_black.cpp                # Combined C++ source (TitleBar + Customizer + Updater)
+    ├── modern_black_win64.dll          # 64-bit compiled DLL
+    ├── qss_template.h                  # Embedded QSS stylesheet template
+    ├── version_config.h                # Header generated from .env
+    └── build_plugin.bat                # Standalone plugin build script
 ```

@@ -49,7 +49,7 @@ QMainWindow, QDialog {
     color: #FFFFFF;
 }
 
-/* --- 2. Top MenuBar (نوار زیر تایتل‌بار با خط تفکیک مدرن و درخشان) --- */
+/* --- 2. Top MenuBar (Divider line with glowing accent gradient) --- */
 QMenuBar {
     background-color: #060709;
     color: #9AA0A6;
@@ -83,7 +83,7 @@ QMenuBar::item:pressed {
     color: #FFFFFF;
 }
 
-/* --- 3. ToolBar & Tool Buttons (فاصله‌بندی استاندارد و اصلاح فلش منو) --- */
+/* --- 3. ToolBar & Tool Buttons (Refined spacing & menu arrow alignment) --- */
 QToolBar {
     background-color: #060709;
     border: none;
@@ -117,7 +117,7 @@ QToolButton {
     min-height: 24px;
 }
 
-/* فاصله بازتر برای دکمه‌های دارای فلش منوی کشویی */
+/* Wider padding for buttons with drop-down arrows */
 QToolButton[popupMode="1"] {
     padding-right: 18px;
 }
@@ -298,7 +298,7 @@ QTabBar::tab:selected {
     font-weight: bold;
 }
 
-/* دکمه ضربدر بستن تب */
+/* Tab Close Button */
 QTabBar::close-button {
     background: transparent;
     border: none;
@@ -315,7 +315,7 @@ QTabBar::close-button:pressed {
     background-color: #C0392B;
 }
 
-/* --- 8. ScrollBars (اسکرول‌بار باریک، مدرن و کپسولی کاملاً گرد Slim Rounded Pill) --- */
+/* --- 8. ScrollBars (Slim Rounded Pill) --- */
 QScrollBar:vertical {
     background: transparent;
     width: 6px;

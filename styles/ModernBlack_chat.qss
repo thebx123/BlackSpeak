@@ -16,7 +16,7 @@ ChatTab {
 
 /* @end */
 
-/* @group Object Link Elements (بدون خط‌چین و با بردر و هایلایت مشابه انتخاب کلاینت) */
+/* @group Object Link Elements (Consistent borders and highlights) */
 a {
     text-decoration: none;
     outline: none;
@@ -126,7 +126,7 @@ a:hover {
     color: #5E9FD8;
 }
 
-/* پیام‌های خصوصی (Private Messages) */
+/* Private Messages */
 .TextMessage_Message.Private {
     color: #60A5FA;
     font-weight: bold;
