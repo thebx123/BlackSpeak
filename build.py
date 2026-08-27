@@ -96,7 +96,7 @@ def compile_plugin(vcvars_bat):
     src_file = os.path.join(plugins_dir, 'blackspeak.cpp')
     out_dll = os.path.join(plugins_dir, 'blackspeak_win64.dll')
 
-    cmd = f'call "{vcvars_bat}" && cl.exe /O2 /MT /GS- /W3 /D_WIN32_WINNT=0x0601 /EHa /LD /Fe:"{out_dll}" "{src_file}" /link user32.lib gdi32.lib comctl32.lib shell32.lib dwmapi.lib wininet.lib /OPT:REF /OPT:ICF'
+    cmd = f'call "{vcvars_bat}" && cl.exe /utf-8 /O2 /MT /GS- /W3 /D_WIN32_WINNT=0x0601 /EHa /LD /Fe:"{out_dll}" "{src_file}" /link user32.lib gdi32.lib comctl32.lib shell32.lib dwmapi.lib wininet.lib /OPT:REF /OPT:ICF'
     res = subprocess.run(cmd, shell=True, cwd=plugins_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if res.returncode != 0:
         print("[!] Plugin compilation failed:")
