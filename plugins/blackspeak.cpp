@@ -77,6 +77,7 @@ static HINSTANCE g_hInst = NULL;
 static HWND g_hConfigWnd = NULL;
 static char* g_pluginID = NULL;
 static wchar_t g_statusText[128] = L"";
+static volatile BOOL g_isManualUpdateCheck = FALSE;
 
 // Dark TitleBar subsystem globals
 static HWINEVENTHOOK g_hook = NULL;
@@ -214,6 +215,7 @@ static UpdateState g_updateState = { UPDATE_STATUS_IDLE, PLUGIN_VERSION_STR, "",
 static HANDLE g_hUpdateThread = NULL;
 
 static void ShowConfigWindow();
+static void StartDownloadAndInstallUpdate(HWND hwndNotify);
 
 static int CompareSemVer(const char* v1, const char* v2) {
     if (!v1 || !v2) return 0;
@@ -247,7 +249,7 @@ static bool JsonExtractString(const char* json, const char* key, char* outVal, s
     const char* p = colon + 1;
     while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
     if (*p != '\"') return false;
-    p++; // past quote
+    p++; // past opening quote
 
     size_t i = 0;
     while (*p && *p != '\"' && i < maxLen - 1) {
@@ -268,6 +270,7 @@ static bool JsonExtractString(const char* json, const char* key, char* outVal, s
 
 static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     HWND hNotifyWnd = (HWND)lpParam;
+    BOOL isManual = g_isManualUpdateCheck;
     g_updateState.status = UPDATE_STATUS_CHECKING;
     snprintf(g_updateState.message, sizeof(g_updateState.message), "Checking for updates...");
     if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
@@ -277,14 +280,28 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Update URL not configured.");
         if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
+        if (isManual) {
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                L"Update server URL is not configured.",
+                L"BlackSpeak Update Check",
+                MB_OK | MB_ICONWARNING | MB_TOPMOST);
+        }
+        g_isManualUpdateCheck = FALSE;
         return 0;
     }
 
-    HINTERNET hInternet = InternetOpenA("ModernBlackUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    HINTERNET hInternet = InternetOpenA("BlackSpeakUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hInternet) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Failed to initialize network.");
         if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
+        if (isManual) {
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                L"Failed to initialize network connection.",
+                L"BlackSpeak Update Check",
+                MB_OK | MB_ICONWARNING | MB_TOPMOST);
+        }
+        g_isManualUpdateCheck = FALSE;
         return 0;
     }
 
@@ -299,6 +316,13 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Unable to connect to update server.");
         if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
+        if (isManual) {
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                L"Unable to connect to update server.\nPlease check your internet connection.",
+                L"BlackSpeak Update Check",
+                MB_OK | MB_ICONWARNING | MB_TOPMOST);
+        }
+        g_isManualUpdateCheck = FALSE;
         return 0;
     }
 
@@ -322,6 +346,13 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Empty response from update server.");
         if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
+        if (isManual) {
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                L"Received empty response from update server.",
+                L"BlackSpeak Update Check",
+                MB_OK | MB_ICONWARNING | MB_TOPMOST);
+        }
+        g_isManualUpdateCheck = FALSE;
         return 0;
     }
 
@@ -333,6 +364,13 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Invalid response format.");
         if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
+        if (isManual) {
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                L"Failed to parse server update metadata.",
+                L"BlackSpeak Update Check",
+                MB_OK | MB_ICONWARNING | MB_TOPMOST);
+        }
+        g_isManualUpdateCheck = FALSE;
         return 0;
     }
 
@@ -347,14 +385,55 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     if (cmp > 0) {
         g_updateState.status = UPDATE_STATUS_AVAILABLE;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Update v%s is available!", serverVer);
+
+        if (hNotifyWnd && IsWindow(hNotifyWnd)) {
+            InvalidateRect(hNotifyWnd, NULL, TRUE);
+        }
+
+        // Show update available popup with Download / Later choice
+        wchar_t msgBoxText[1024];
+        swprintf_s(msgBoxText,
+            L"A new version of BlackSpeak is available!\n\n"
+            L"• Installed Version: v%S\n"
+            L"• Latest Version:    v%S\n\n"
+            L"Changelog:\n%S\n\n"
+            L"Click 'Yes' to Download & Update now, or 'No' to update Later.",
+            PLUGIN_VERSION_STR,
+            serverVer,
+            changelog[0] ? changelog : "Performance optimizations and styling improvements.");
+
+        int userChoice = MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+            msgBoxText,
+            L"BlackSpeak - Update Available",
+            MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_DEFBUTTON1);
+
+        if (userChoice == IDYES) {
+            StartDownloadAndInstallUpdate(hNotifyWnd);
+        }
     } else {
         g_updateState.status = UPDATE_STATUS_UP_TO_DATE;
-        snprintf(g_updateState.message, sizeof(g_updateState.message), "Modern Black Suite is up to date.");
+        snprintf(g_updateState.message, sizeof(g_updateState.message), "BlackSpeak is up to date (v%s).", PLUGIN_VERSION_STR);
+
+        if (hNotifyWnd && IsWindow(hNotifyWnd)) {
+            InvalidateRect(hNotifyWnd, NULL, TRUE);
+        }
+
+        if (isManual) {
+            wchar_t msgBoxText[512];
+            swprintf_s(msgBoxText,
+                L"BlackSpeak is up to date!\n\n"
+                L"You are currently running the latest version (v%S).\n"
+                L"No updates are needed.",
+                PLUGIN_VERSION_STR);
+
+            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+                msgBoxText,
+                L"BlackSpeak - Check for Update",
+                MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+        }
     }
 
-    if (hNotifyWnd && IsWindow(hNotifyWnd)) {
-        InvalidateRect(hNotifyWnd, NULL, TRUE);
-    }
+    g_isManualUpdateCheck = FALSE;
     return 0;
 }
 
@@ -375,9 +454,9 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     char tempDir[MAX_PATH];
     GetTempPathA(MAX_PATH, tempDir);
     char destFile[MAX_PATH];
-    snprintf(destFile, sizeof(destFile), "%sModernBlack_Update_%s.ts3_addon", tempDir, g_updateState.latestVersion);
+    snprintf(destFile, sizeof(destFile), "%sBlackSpeak_Update_%s.ts3_addon", tempDir, g_updateState.latestVersion);
 
-    HINTERNET hInternet = InternetOpenA("ModernBlackUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    HINTERNET hInternet = InternetOpenA("BlackSpeakUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hInternet) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Network initialization failed.");
@@ -437,21 +516,21 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
 
     wchar_t msgBoxText[512];
     swprintf_s(msgBoxText,
-        L"Update package v%S has been downloaded successfully!\n\n"
-        L"TeamSpeak 3 must be closed to allow replacing the active plugin files.\n\n"
-        L"Would you like to close TeamSpeak 3 and launch the installer now?",
+        L"BlackSpeak update package v%S has been downloaded successfully!\n\n"
+        L"TeamSpeak 3 must restart to complete installation of updated components.\n\n"
+        L"Close TeamSpeak 3 and start installation now?",
         g_updateState.latestVersion);
 
     int userChoice = MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
         msgBoxText,
-        L"Modern Black Auto-Updater",
+        L"BlackSpeak Auto-Updater",
         MB_YESNO | MB_ICONQUESTION | MB_TOPMOST);
 
     if (userChoice == IDYES) {
-        char tempDir[MAX_PATH];
-        GetTempPathA(MAX_PATH, tempDir);
+        char tempDirBat[MAX_PATH];
+        GetTempPathA(MAX_PATH, tempDirBat);
         char batPath[MAX_PATH];
-        snprintf(batPath, sizeof(batPath), "%sts3_install_update.bat", tempDir);
+        snprintf(batPath, sizeof(batPath), "%sts3_install_update.bat", tempDirBat);
 
         FILE* fpBat = NULL;
         fopen_s(&fpBat, batPath, "w");
@@ -482,8 +561,9 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     return 0;
 }
 
-static void StartCheckForUpdates(HWND hwndNotify) {
+static void StartCheckForUpdates(HWND hwndNotify, BOOL isManual) {
     if (g_updateState.status == UPDATE_STATUS_CHECKING || g_updateState.status == UPDATE_STATUS_DOWNLOADING) return;
+    g_isManualUpdateCheck = isManual;
     if (g_hUpdateThread) {
         CloseHandle(g_hUpdateThread);
         g_hUpdateThread = NULL;
@@ -513,14 +593,28 @@ static void GetAppStylesDir(char* outPath, size_t maxLen) {
 static void GetConfigFilePath(char* outPath, size_t maxLen) {
     char appData[MAX_PATH];
     GetEnvironmentVariableA("APPDATA", appData, MAX_PATH);
-    snprintf(outPath, maxLen, "%s\\TS3Client\\modern_black_config.ini", appData);
+    snprintf(outPath, maxLen, "%s\\TS3Client\\blackspeak_config.ini", appData);
 }
 
 static void LoadConfig() {
     char cfgPath[MAX_PATH];
     GetConfigFilePath(cfgPath, sizeof(cfgPath));
-    g_isThemeEnabled = GetPrivateProfileIntA("ModernBlack", "Enabled", 1, cfgPath);
-    g_selectedPaletteIndex = GetPrivateProfileIntA("ModernBlack", "PaletteIndex", 0, cfgPath);
+
+    // Fallback to legacy config if new config doesn't exist yet
+    if (GetFileAttributesA(cfgPath) == INVALID_FILE_ATTRIBUTES) {
+        char oldCfg[MAX_PATH];
+        char appData[MAX_PATH];
+        GetEnvironmentVariableA("APPDATA", appData, MAX_PATH);
+        snprintf(oldCfg, sizeof(oldCfg), "%s\\TS3Client\\modern_black_config.ini", appData);
+        if (GetFileAttributesA(oldCfg) != INVALID_FILE_ATTRIBUTES) {
+            g_isThemeEnabled = GetPrivateProfileIntA("ModernBlack", "Enabled", 1, oldCfg);
+            g_selectedPaletteIndex = GetPrivateProfileIntA("ModernBlack", "PaletteIndex", 0, oldCfg);
+            return;
+        }
+    }
+
+    g_isThemeEnabled = GetPrivateProfileIntA("BlackSpeak", "Enabled", 1, cfgPath);
+    g_selectedPaletteIndex = GetPrivateProfileIntA("BlackSpeak", "PaletteIndex", 0, cfgPath);
     if (g_selectedPaletteIndex < 0 || g_selectedPaletteIndex >= (int)PALETTE_COUNT) {
         g_selectedPaletteIndex = 0;
     }
@@ -531,9 +625,9 @@ static void SaveConfig() {
     GetConfigFilePath(cfgPath, sizeof(cfgPath));
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", g_isThemeEnabled);
-    WritePrivateProfileStringA("ModernBlack", "Enabled", buf, cfgPath);
+    WritePrivateProfileStringA("BlackSpeak", "Enabled", buf, cfgPath);
     snprintf(buf, sizeof(buf), "%d", g_selectedPaletteIndex);
-    WritePrivateProfileStringA("ModernBlack", "PaletteIndex", buf, cfgPath);
+    WritePrivateProfileStringA("BlackSpeak", "PaletteIndex", buf, cfgPath);
 }
 
 static void UpdateSettingsDb(BOOL enabled) {
@@ -614,7 +708,7 @@ static bool ApplyLiveQtStyleSheet(const char* qssContent) {
         pSetStyleSheet(qApp, qstrEmpty);
         if (pDtorQString) pDtorQString(qstrEmpty);
 
-        // Step 2: Apply the updated Modern Black stylesheet
+        // Step 2: Apply the updated BlackSpeak stylesheet
         if (qssContent && strlen(qssContent) > 0) {
             void* qstrNew[2] = {0};
             pFromUtf8(qstrNew, qssContent, (int)strlen(qssContent));
@@ -678,12 +772,14 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
     switch (msg) {
     case WM_CREATE: {
-        hBgBrush = CreateSolidBrush(RGB(10, 12, 16));
-        hCardBrush = CreateSolidBrush(RGB(15, 18, 26));
-        hBannerBrush = CreateSolidBrush(RGB(19, 23, 34));
-        hItemSelBrush = CreateSolidBrush(RGB(28, 35, 50));
+        // Deep obsidian theme colors
+        hBgBrush = CreateSolidBrush(RGB(8, 10, 15));
+        hCardBrush = CreateSolidBrush(RGB(15, 19, 29));
+        hBannerBrush = CreateSolidBrush(RGB(16, 20, 31));
+        hItemSelBrush = CreateSolidBrush(RGB(28, 35, 52));
 
-        hHeaderFont = CreateFontW(18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        // Segoe UI font hierarchy (matching native TeamSpeak 3 typography)
+        hHeaderFont = CreateFontW(19, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hSubFont = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hSectionFont = CreateFontW(14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hNormalFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
@@ -694,12 +790,12 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         ApplyDarkTitleBar(hwnd);
 
         // Theme Checkbox
-        hChk = CreateWindowW(L"BUTTON", L" Enable Modern Black Theme", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 32, 70, 455, 22, hwnd, (HMENU)IDC_ENABLE_CHECKBOX, g_hInst, NULL);
+        hChk = CreateWindowW(L"BUTTON", L" Enable BlackSpeak Theme", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 32, 68, 455, 22, hwnd, (HMENU)IDC_ENABLE_CHECKBOX, g_hInst, NULL);
         SendMessage(hChk, WM_SETFONT, (WPARAM)hSectionFont, TRUE);
         SendMessage(hChk, BM_SETCHECK, g_isThemeEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
 
         // Accent Palette Dropdown
-        hCombo = CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL, 30, 140, 465, 300, hwnd, (HMENU)IDC_ACCENT_COMBO, g_hInst, NULL);
+        hCombo = CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL, 30, 138, 465, 300, hwnd, (HMENU)IDC_ACCENT_COMBO, g_hInst, NULL);
         SendMessage(hCombo, WM_SETFONT, (WPARAM)hNormalFont, TRUE);
 
         for (size_t i = 0; i < PALETTE_COUNT; ++i) {
@@ -707,12 +803,12 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         SendMessage(hCombo, CB_SETCURSEL, g_selectedPaletteIndex, 0);
 
-        // Check Update Button
-        hCheckUpdate = CreateWindowW(L"BUTTON", L"Check Updates", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 360, 316, 125, 28, hwnd, (HMENU)IDC_CHECK_UPDATE_BTN, g_hInst, NULL);
+        // Check for Update Button
+        hCheckUpdate = CreateWindowW(L"BUTTON", L"Check for Update", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 350, 314, 135, 30, hwnd, (HMENU)IDC_CHECK_UPDATE_BTN, g_hInst, NULL);
         SendMessage(hCheckUpdate, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
-        // Update Now Button
-        hDoUpdate = CreateWindowW(L"BUTTON", L"Update Now", WS_CHILD | BS_OWNERDRAW, 360, 350, 125, 32, hwnd, (HMENU)IDC_DO_UPDATE_BTN, g_hInst, NULL);
+        // Update Now Button (shown when update is available)
+        hDoUpdate = CreateWindowW(L"BUTTON", L"⚡ Update Now", WS_CHILD | BS_OWNERDRAW, 350, 350, 135, 32, hwnd, (HMENU)IDC_DO_UPDATE_BTN, g_hInst, NULL);
         SendMessage(hDoUpdate, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
         // Bottom Action Buttons
@@ -725,7 +821,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         g_statusText[0] = L'\0';
 
         if (g_updateState.status == UPDATE_STATUS_IDLE) {
-            StartCheckForUpdates(hwnd);
+            StartCheckForUpdates(hwnd, FALSE);
         }
         break;
     }
@@ -807,7 +903,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             SetBkMode(dis->hDC, TRANSPARENT);
             SetTextColor(dis->hDC, RGB(200, 215, 235));
             SelectObject(dis->hDC, hBtnFont);
-            const wchar_t* btnText = (g_updateState.status == UPDATE_STATUS_CHECKING) ? L"Checking..." : L"Check Updates";
+            const wchar_t* btnText = (g_updateState.status == UPDATE_STATUS_CHECKING) ? L"Checking..." : L"Check for Update";
             DrawTextW(dis->hDC, btnText, -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             return TRUE;
         }
@@ -891,11 +987,11 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         SetTextColor(hdc, RGB(255, 255, 255));
         SelectObject(hdc, hHeaderFont);
         RECT rTitle = { 24, 8, 500, 30 };
-        DrawTextW(hdc, L"Modern Black Theme Settings", -1, &rTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        DrawTextW(hdc, L"Theme - BlackSpeak", -1, &rTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         SetTextColor(hdc, RGB(148, 163, 184));
         SelectObject(hdc, hSubFont);
-        RECT rSub = { 24, 31, 500, 50 };
+        RECT rSub = { 24, 32, 500, 50 };
         DrawTextW(hdc, L"Coretify Studio • Unified Dark Theme, Dark TitleBar & Customizer", -1, &rSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         HPEN hLinePen = CreatePen(PS_SOLID, 1, RGB(30, 36, 50));
@@ -906,13 +1002,13 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         // Subtext for Checkbox
         SetTextColor(hdc, RGB(110, 125, 145));
         SelectObject(hdc, hSubFont);
-        RECT rChkSub = { 54, 92, 490, 110 };
-        DrawTextW(hdc, L"Sets Modern Black as your default active TeamSpeak style.", -1, &rChkSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        RECT rChkSub = { 54, 90, 490, 108 };
+        DrawTextW(hdc, L"Sets BlackSpeak as your default active TeamSpeak style.", -1, &rChkSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         // Section 2: Accent Palette Label
         SetTextColor(hdc, RGB(226, 232, 240));
         SelectObject(hdc, hSectionFont);
-        RECT rSec2 = { 30, 118, 490, 136 };
+        RECT rSec2 = { 30, 116, 490, 134 };
         DrawTextW(hdc, L"Select Accent Palette:", -1, &rSec2, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         // Palette Live Preview Card
@@ -920,81 +1016,81 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         if (curSel >= 0 && curSel < (int)PALETTE_COUNT) {
             const AccentPalette& pal = g_palettes[curSel];
 
-            RECT rCard = { 30, 180, 495, 290 };
+            RECT rCard = { 30, 178, 495, 288 };
             FillRect(hdc, &rCard, hCardBrush);
 
             HPEN hCardPen = CreatePen(PS_SOLID, 1, RGB(32, 40, 56));
             HPEN pOld = (HPEN)SelectObject(hdc, hCardPen);
             HBRUSH bOld = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 30, 180, 495, 290, 6, 6);
+            RoundRect(hdc, 30, 178, 495, 288, 6, 6);
             SelectObject(hdc, pOld);
             SelectObject(hdc, bOld);
             DeleteObject(hCardPen);
 
             // Left Color Pill Bar
             HBRUSH hSwatch = CreateSolidBrush(pal.colorRef);
-            RECT rPill = { 44, 194, 62, 232 };
+            RECT rPill = { 44, 192, 62, 230 };
             FillRect(hdc, &rPill, hSwatch);
             DeleteObject(hSwatch);
 
             // Palette Title & Tag
             SetTextColor(hdc, RGB(255, 255, 255));
             SelectObject(hdc, hSectionFont);
-            RECT rSwatchTitle = { 72, 192, 460, 212 };
+            RECT rSwatchTitle = { 72, 190, 460, 210 };
             DrawTextW(hdc, pal.name, -1, &rSwatchTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
             SetTextColor(hdc, RGB(148, 163, 184));
             SelectObject(hdc, hSubFont);
-            RECT rTag = { 72, 212, 460, 230 };
+            RECT rTag = { 72, 210, 460, 228 };
             DrawTextW(hdc, pal.tag, -1, &rTag, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
             // Hex values line
             SetTextColor(hdc, RGB(160, 175, 200));
             SelectObject(hdc, hHexFont);
-            RECT rHex = { 44, 240, 480, 258 };
+            RECT rHex = { 44, 238, 480, 256 };
             wchar_t hexBuf[128];
             swprintf_s(hexBuf, L"Primary: %S   |   Hover: %S   |   Glow: %S", pal.primary, pal.accent, pal.glow);
             DrawTextW(hdc, hexBuf, -1, &rHex, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
             // Mini Live Channel Pill
             HBRUSH hSimChan = CreateSolidBrush(pal.colorRef);
-            RECT rSimChan = { 44, 260, 200, 282 };
+            RECT rSimChan = { 44, 258, 200, 280 };
             FillRect(hdc, &rSimChan, hSimChan);
             DeleteObject(hSimChan);
 
             SetTextColor(hdc, RGB(255, 255, 255));
             SelectObject(hdc, hSubFont);
-            RECT rSimChanText = { 50, 260, 194, 282 };
+            RECT rSimChanText = { 50, 258, 194, 280 };
             DrawTextW(hdc, L"🔊 Active Channel", -1, &rSimChanText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
             // Mini Action Button Preview
             HBRUSH hSimBtnBg = CreateSolidBrush(RGB(18, 24, 36));
-            RECT rSimBtn = { 210, 260, 310, 282 };
+            RECT rSimBtn = { 210, 258, 310, 280 };
             FillRect(hdc, &rSimBtn, hSimBtnBg);
             DeleteObject(hSimBtnBg);
 
             HPEN hSimBtnBorder = CreatePen(PS_SOLID, 1, pal.colorRef);
             HPEN pOld2 = (HPEN)SelectObject(hdc, hSimBtnBorder);
             HBRUSH bOld2 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 210, 260, 310, 282, 4, 4);
+            RoundRect(hdc, 210, 258, 310, 280, 4, 4);
             SelectObject(hdc, pOld2);
             SelectObject(hdc, bOld2);
             DeleteObject(hSimBtnBorder);
 
             SetTextColor(hdc, RGB(255, 255, 255));
             SelectObject(hdc, hSubFont);
-            RECT rSimBtnText = { 210, 260, 310, 282 };
+            RECT rSimBtnText = { 210, 258, 310, 280 };
             DrawTextW(hdc, L"Button Preview", -1, &rSimBtnText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
         }
 
         // Auto-Update & Version Card
-        RECT rUpdCard = { 30, 302, 495, 400 };
+        RECT rUpdCard = { 30, 300, 495, 398 };
         FillRect(hdc, &rUpdCard, hCardBrush);
 
         HPEN hUpdBorder = CreatePen(PS_SOLID, 1, RGB(32, 40, 56));
         HPEN pOldUpd = (HPEN)SelectObject(hdc, hUpdBorder);
         HBRUSH bOldUpd = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-        RoundRect(hdc, 30, 302, 495, 400, 6, 6);
+        RoundRect(hdc, 30, 300, 495, 398, 6, 6);
         SelectObject(hdc, pOldUpd);
         SelectObject(hdc, bOldUpd);
         DeleteObject(hUpdBorder);
@@ -1002,7 +1098,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         // Section Title: Suite Version
         SetTextColor(hdc, RGB(240, 245, 255));
         SelectObject(hdc, hSectionFont);
-        RECT rUpdTitle = { 44, 312, 280, 332 };
+        RECT rUpdTitle = { 44, 310, 280, 330 };
         DrawTextW(hdc, L"Suite Updates & Version", -1, &rUpdTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         // Version Badge
@@ -1010,7 +1106,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         SelectObject(hdc, hBadgeFont);
         wchar_t verBadge[64];
         swprintf_s(verBadge, L"Installed: v%S", PLUGIN_VERSION_STR);
-        RECT rBadge = { 44, 332, 340, 350 };
+        RECT rBadge = { 44, 330, 340, 348 };
         DrawTextW(hdc, verBadge, -1, &rBadge, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         // Status Text in Card
@@ -1032,7 +1128,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
 
         SelectObject(hdc, hSubFont);
-        RECT rUpdStatus = { 44, 355, 340, 392 };
+        RECT rUpdStatus = { 44, 353, 335, 390 };
         DrawTextW(hdc, wMsg, -1, &rUpdStatus, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
 
         // Bottom Separator Line
@@ -1056,14 +1152,14 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     case WM_CTLCOLORSTATIC: {
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, RGB(255, 255, 255));
-        SetBkColor(hdc, RGB(10, 12, 16));
+        SetBkColor(hdc, RGB(8, 10, 15));
         return (LRESULT)hBgBrush;
     }
 
     case WM_CTLCOLORBTN: {
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, RGB(255, 255, 255));
-        SetBkColor(hdc, RGB(10, 12, 16));
+        SetBkColor(hdc, RGB(8, 10, 15));
         return (LRESULT)hBgBrush;
     }
 
@@ -1091,7 +1187,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             InvalidateRect(hwnd, NULL, TRUE);
         }
         else if (wmId == IDC_CHECK_UPDATE_BTN) {
-            StartCheckForUpdates(hwnd);
+            StartCheckForUpdates(hwnd, TRUE);
         }
         else if (wmId == IDC_DO_UPDATE_BTN) {
             StartDownloadAndInstallUpdate(hwnd);
@@ -1153,7 +1249,7 @@ static void ShowConfigWindow() {
         WNDCLASSEXW wc = { sizeof(WNDCLASSEXW) };
         wc.lpfnWndProc = ConfigWndProc;
         wc.hInstance = g_hInst;
-        wc.lpszClassName = L"ModernBlackTS3CustomizerFinalV7";
+        wc.lpszClassName = L"BlackSpeakTS3CustomizerV2";
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
         wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
         RegisterClassExW(&wc);
@@ -1169,8 +1265,8 @@ static void ShowConfigWindow() {
 
     g_hConfigWnd = CreateWindowExW(
         WS_EX_DLGMODALFRAME,
-        L"ModernBlackTS3CustomizerFinalV7",
-        L"Modern Black Theme Settings",
+        L"BlackSpeakTS3CustomizerV2",
+        L"Theme - BlackSpeak",
         WS_VISIBLE | WS_POPUP | WS_CAPTION | WS_SYSMENU,
         x, y, width, height,
         topTS3, NULL, g_hInst, NULL
@@ -1192,7 +1288,7 @@ struct TS3Functions { void* dummy; };
 extern "C" {
 
 PLUGINS_EXPORTDLL const char* ts3plugin_name() {
-    return "Modern Black";
+    return "BlackSpeak";
 }
 
 PLUGINS_EXPORTDLL const char* ts3plugin_version() {
@@ -1208,7 +1304,7 @@ PLUGINS_EXPORTDLL const char* ts3plugin_author() {
 }
 
 PLUGINS_EXPORTDLL const char* ts3plugin_description() {
-    return "Official Modern Black Suite for TeamSpeak 3: Sleek Dark Theme, Windows 11 Dark Titlebars, Live Accent Customizer, and Auto-Update support.\nDesigned by Coretify Studio.";
+    return "Official BlackSpeak Suite for TeamSpeak 3: Sleek Dark Theme, Windows 11 Dark Titlebars, Live Accent Customizer, and Auto-Update support.\nDesigned by Coretify Studio.";
 }
 
 PLUGINS_EXPORTDLL void ts3plugin_setFunctionPointers(const struct TS3Functions funcs) {
@@ -1245,7 +1341,7 @@ PLUGINS_EXPORTDLL void ts3plugin_initMenus(struct PluginMenuItem*** menuItems, c
 
     *menuItems = (struct PluginMenuItem**)malloc(sizeof(struct PluginMenuItem*) * 2);
     if (!*menuItems) return;
-    (*menuItems)[0] = createMenuItem(PLUGIN_MENU_TYPE_GLOBAL, 1, "Theme Settings", "");
+    (*menuItems)[0] = createMenuItem(PLUGIN_MENU_TYPE_GLOBAL, 1, "Theme", "");
     (*menuItems)[1] = NULL;
 }
 
@@ -1272,7 +1368,7 @@ PLUGINS_EXPORTDLL int ts3plugin_init() {
     // 1. Start Windows 11 Dark TitleBar Engine
     StartDarkTitleBarEngine();
 
-    // 2. Load and Apply Modern Black theme stylesheet
+    // 2. Load and Apply BlackSpeak theme stylesheet
     LoadConfig();
     ApplyThemeAndPalette();
 

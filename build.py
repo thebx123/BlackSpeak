@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Modern Black Suite - Unified Build & Packaging System
+BlackSpeak Suite - Unified Build & Packaging System
 Reads settings from .env, synchronizes version across headers, manifests,
 and version.json, compiles the unified C++ plugin with MSVC x64,
-and generates ModernBlack.ts3_addon.
+and generates BlackSpeak.ts3_addon.
 """
 
 import os
@@ -17,7 +17,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def parse_env(env_path):
     config = {
-        'PLUGIN_VERSION': '1.0.0',
+        'PLUGIN_VERSION': '1.1.0',
         'UPDATE_URL': 'https://raw.githubusercontent.com/TheBx123/BlackSpeak/main/version.json',
         'CHANGELOG': ''
     }
@@ -50,6 +50,7 @@ def update_ini_version(ini_path, version):
     with open(ini_path, 'r', encoding='utf-8') as f:
         content = f.read()
     new_content = re.sub(r'Version\s*=\s*[^\r\n]+', f'Version = {version}', content)
+    new_content = re.sub(r'Name\s*=\s*[^\r\n]+', 'Name = BlackSpeak', new_content)
     with open(ini_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
     print(f"[*] Synchronized {os.path.relpath(ini_path, PROJECT_ROOT)} -> Version {version}")
@@ -64,19 +65,12 @@ def update_version_json(file_path, version, custom_changelog=''):
         data = {}
 
     data['version'] = version
-
-    # Automatically derive the release download URL matching the repo and new tag
-    existing_url = data.get('download_url', '')
-    if existing_url and '/releases/download/' in existing_url:
-        base_url = existing_url.split('/releases/download/')[0]
-        data['download_url'] = f"{base_url}/releases/download/v{version}/ModernBlack.ts3_addon"
-    else:
-        data['download_url'] = f"https://github.com/TheBx123/BlackSpeak/releases/download/v{version}/ModernBlack.ts3_addon"
+    data['download_url'] = f"https://github.com/TheBx123/BlackSpeak/releases/download/v{version}/BlackSpeak.ts3_addon"
 
     if custom_changelog:
         data['changelog'] = custom_changelog
     elif 'changelog' not in data or not data['changelog']:
-        data['changelog'] = f"BlackSpeak Suite v{version} release with latest improvements."
+        data['changelog'] = f"BlackSpeak Suite v{version} release with refined UI customizer and auto-update alerts."
 
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
@@ -97,10 +91,10 @@ def find_vcvars64():
     return None
 
 def compile_plugin(vcvars_bat):
-    print("\n--- Compiling Unified C++ Plugin (MSVC 64-bit) ---")
+    print("\n--- Compiling BlackSpeak C++ Plugin (MSVC 64-bit) ---")
     plugins_dir = os.path.join(PROJECT_ROOT, 'plugins')
-    src_file = os.path.join(plugins_dir, 'modern_black.cpp')
-    out_dll = os.path.join(plugins_dir, 'modern_black_win64.dll')
+    src_file = os.path.join(plugins_dir, 'blackspeak.cpp')
+    out_dll = os.path.join(plugins_dir, 'blackspeak_win64.dll')
 
     cmd = f'call "{vcvars_bat}" && cl.exe /O2 /MT /GS- /W3 /D_WIN32_WINNT=0x0601 /EHa /LD /Fe:"{out_dll}" "{src_file}" /link user32.lib gdi32.lib comctl32.lib shell32.lib dwmapi.lib wininet.lib /OPT:REF /OPT:ICF'
     res = subprocess.run(cmd, shell=True, cwd=plugins_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -108,25 +102,25 @@ def compile_plugin(vcvars_bat):
         print("[!] Plugin compilation failed:")
         print(res.stdout)
         return False
-    print("[+] Modern Black plugin compiled successfully.")
+    print("[+] BlackSpeak plugin compiled successfully.")
 
     # Clean intermediate build files
     for ext in ['.obj', '.exp', '.lib']:
-        p = os.path.join(plugins_dir, 'modern_black' + ext)
+        p = os.path.join(plugins_dir, 'blackspeak' + ext)
         if os.path.exists(p): os.remove(p)
-        p2 = os.path.join(plugins_dir, 'modern_black_win64' + ext)
+        p2 = os.path.join(plugins_dir, 'blackspeak_win64' + ext)
         if os.path.exists(p2): os.remove(p2)
 
     return True
 
 def package_addon(version):
-    print("\n--- Packaging Unified ModernBlack.ts3_addon ---")
-    addon_out = os.path.join(PROJECT_ROOT, 'ModernBlack.ts3_addon')
+    print("\n--- Packaging Unified BlackSpeak.ts3_addon ---")
+    addon_out = os.path.join(PROJECT_ROOT, 'BlackSpeak.ts3_addon')
     if os.path.exists(addon_out):
         os.remove(addon_out)
 
     ini_path = os.path.join(PROJECT_ROOT, 'package.ini')
-    dll_path = os.path.join(PROJECT_ROOT, 'plugins', 'modern_black_win64.dll')
+    dll_path = os.path.join(PROJECT_ROOT, 'plugins', 'blackspeak_win64.dll')
     styles_dir = os.path.join(PROJECT_ROOT, 'styles')
 
     with zipfile.ZipFile(addon_out, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
@@ -136,8 +130,8 @@ def package_addon(version):
 
         # 2. Unified Plugin DLL
         if os.path.exists(dll_path):
-            zf.write(dll_path, arcname='plugins/modern_black_win64.dll')
-            print("  Added: plugins/modern_black_win64.dll")
+            zf.write(dll_path, arcname='plugins/blackspeak_win64.dll')
+            print("  Added: plugins/blackspeak_win64.dll")
         else:
             print("[!] Warning: Plugin DLL not found!")
 
@@ -153,7 +147,7 @@ def package_addon(version):
 
 def main():
     print("===================================================")
-    print("  Modern Black Suite - Unified Build System")
+    print("  BlackSpeak Suite - Unified Build System")
     print("===================================================")
 
     env_path = os.path.join(PROJECT_ROOT, '.env')

@@ -2,7 +2,7 @@
 
 static const char g_qssTemplate[] = R"QSS_TEMPLATE(
 /*
- * TeamSpeak 3 Modern Black Qt StyleSheet
+ * TeamSpeak 3 BlackSpeak Qt StyleSheet
  * Designed by Coretify Studio
  *
  * Global overrides for QPalette::ColorRole values:

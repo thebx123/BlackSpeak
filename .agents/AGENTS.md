@@ -7,5 +7,6 @@
 - **No Non-English Text:** No foreign language characters (including Persian, Arabic, etc.) are allowed within codebases, comments, or documentation files in this repository.
 
 ## 2. Architecture & Packaging Guidelines
-- **Unified Architecture:** The project uses a single unified C++ plugin (`plugins/modern_black.cpp` -> `plugins/modern_black_win64.dll`) and a single `.ts3_addon` distribution package (`ModernBlack.ts3_addon`).
+- **Unified Architecture:** The project uses a single unified C++ plugin (`plugins/blackspeak.cpp` -> `plugins/blackspeak_win64.dll`) and a single `.ts3_addon` distribution package (`BlackSpeak.ts3_addon`).
 - **Version Control with `.env`:** Versioning and auto-update endpoints are dynamically managed via `.env` and synchronized automatically by `build.py`.
+- **Publish Trigger (`publish:<version>`):** When given the command `publish:<version>` (e.g. `publish:1.1.0`), the agent sets `PLUGIN_VERSION` in `.env`, runs `build.py`, commits, tags `v<version>`, and pushes to remote.

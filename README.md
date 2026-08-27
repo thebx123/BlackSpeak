@@ -1,4 +1,4 @@
-# Modern Black TeamSpeak 3 Suite
+# BlackSpeak TeamSpeak 3 Suite
 Designed and developed by **Coretify Studio**
 
 ---
@@ -7,12 +7,12 @@ Designed and developed by **Coretify Studio**
 
 All theme elements, Windows 11 dark titlebar support, live accent customizer, and background auto-update subsystem are unified into a single distribution package:
 
-### 📥 **[`ModernBlack.ts3_addon`](file:///g:/Projects/TS3-ModernBlack/ModernBlack.ts3_addon)**
+### 📥 **[`BlackSpeak.ts3_addon`](file:///g:/Projects/TS3-ModernBlack/BlackSpeak.ts3_addon)**
 Double-clicking this package automatically installs and activates the complete suite in TeamSpeak 3:
 1. **Obsidian Dark Theme:** Base background color `#060709`, glowing gradient accent line below the menu bar, slim rounded pill scrollbars, and customized chat & channel panels.
 2. **Windows 11 Native Dark TitleBar:** Hooks into Windows 11 DWM to render native dark titlebars and sleek dark frames across all dialogs and popup windows.
 3. **Live Accent & Theme Customizer:** Instant color palette switching and real-time stylesheet updates without requiring a client restart.
-4. **Auto-Updater Engine:** Non-blocking background update checks against GitHub releases with one-click direct update installation.
+4. **Auto-Updater Engine:** Non-blocking update checks with interactive modal alerts and direct update package installation.
 
 ---
 
@@ -22,7 +22,7 @@ Version number and update server endpoint are easily managed in the root [`.env`
 
 ```env
 # Suite & Plugin Version (SemVer format)
-PLUGIN_VERSION=1.0.0
+PLUGIN_VERSION=1.1.0
 
 # Update Metadata JSON URL (GitHub Raw URL or dedicated server)
 UPDATE_URL=https://raw.githubusercontent.com/thebx123/BlackSpeak/main/version.json
@@ -31,9 +31,9 @@ UPDATE_URL=https://raw.githubusercontent.com/thebx123/BlackSpeak/main/version.js
 ### Server `version.json` Metadata Schema:
 ```json
 {
-  "version": "1.0.0",
-  "download_url": "https://github.com/thebx123/BlackSpeak/releases/download/v1.0.0/ModernBlack.ts3_addon",
-  "changelog": "Initial release of BlackSpeak: Sleek Obsidian Dark Theme, Windows 11 Dark Titlebars, Live Accent Customizer, and Auto-Update support in 1 package."
+  "version": "1.1.0",
+  "download_url": "https://github.com/thebx123/BlackSpeak/releases/download/v1.1.0/BlackSpeak.ts3_addon",
+  "changelog": "BlackSpeak Suite v1.1.0: Refined theme UI, native Segoe UI typography, and interactive Check for Update modal alerts."
 }
 ```
 
@@ -41,7 +41,7 @@ UPDATE_URL=https://raw.githubusercontent.com/thebx123/BlackSpeak/main/version.js
 
 ## 🛠️ Automated Build & Packaging System
 
-To compile the C++ plugin and generate the unified `ModernBlack.ts3_addon` package:
+To compile the C++ plugin and generate the unified `BlackSpeak.ts3_addon` package:
 
 1. **Run Python build script:**
    ```bash
@@ -54,19 +54,22 @@ To compile the C++ plugin and generate the unified `ModernBlack.ts3_addon` packa
 ## 📁 Repository Directory Structure:
 ```
 ├── .agents/                            # Coding standards, rules, and customization configs
-│   ├── AGENTS.md                       # Core repository rules (English-only standard)
-│   └── rules/language.md               # Language and localization constraints
+│   ├── AGENTS.md                       # Core repository rules & publish trigger
+│   ├── rules/                          # Repository rules
+│   │   ├── language.md                 # Language and localization constraints
+│   │   └── publish.md                  # publish:<version> automation workflow
+│   └── skills/publish/                 # Publisher skill definition
 ├── .env                                # Local environment config (Version & Update URL)
 ├── .env.example                        # Template environment config
 ├── version.json                        # Server update metadata template
 ├── package.ini                         # TeamSpeak 3 Addon manifest
 ├── build.py                            # Unified compiler & packaging pipeline
 ├── build.bat                           # 1-Click build launcher for Windows
-├── ModernBlack.ts3_addon               # Distribution package for TeamSpeak 3
+├── BlackSpeak.ts3_addon                # Distribution package for TeamSpeak 3
 ├── styles/                             # QSS stylesheets and TPL templates
 └── plugins/                            # Unified C++ plugin source and binary
-    ├── modern_black.cpp                # Combined C++ source (TitleBar + Customizer + Updater)
-    ├── modern_black_win64.dll          # 64-bit compiled DLL
+    ├── blackspeak.cpp                  # Combined C++ source (TitleBar + Customizer + Updater)
+    ├── blackspeak_win64.dll            # 64-bit compiled DLL
     ├── qss_template.h                  # Embedded QSS stylesheet template
     ├── version_config.h                # Header generated from .env
     └── build_plugin.bat                # Standalone plugin build script
