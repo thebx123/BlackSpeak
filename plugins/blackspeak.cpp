@@ -88,8 +88,6 @@ static volatile BOOL g_titlebarRunning = FALSE;
 #define IDC_ACCENT_COMBO       1002
 #define IDC_APPLY_BTN          1003
 #define IDC_CANCEL_BTN         1004
-#define IDC_CHECK_UPDATE_BTN   1005
-#define IDC_DO_UPDATE_BTN      1006
 
 // ==========================================
 // Dark TitleBar Subsystem
@@ -270,22 +268,18 @@ static bool JsonExtractString(const char* json, const char* key, char* outVal, s
 
 static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     HWND hNotifyWnd = (HWND)lpParam;
-    BOOL isManual = g_isManualUpdateCheck;
+    HWND hParent = hNotifyWnd ? hNotifyWnd : GetForegroundWindow();
     g_updateState.status = UPDATE_STATUS_CHECKING;
     snprintf(g_updateState.message, sizeof(g_updateState.message), "Checking for updates...");
-    if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
 
     const char* url = UPDATE_CHECK_URL;
     if (!url || strlen(url) == 0) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Update URL not configured.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
-        if (isManual) {
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                L"Update server URL is not configured.",
-                L"BlackSpeak Update Check",
-                MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            L"Update server URL is not configured.",
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONWARNING | MB_TOPMOST);
         g_isManualUpdateCheck = FALSE;
         return 0;
     }
@@ -294,13 +288,10 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     if (!hInternet) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Failed to initialize network.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
-        if (isManual) {
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                L"Failed to initialize network connection.",
-                L"BlackSpeak Update Check",
-                MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            L"Failed to initialize network connection.",
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONWARNING | MB_TOPMOST);
         g_isManualUpdateCheck = FALSE;
         return 0;
     }
@@ -315,13 +306,10 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         InternetCloseHandle(hInternet);
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Unable to connect to update server.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
-        if (isManual) {
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                L"Unable to connect to update server.\nPlease check your internet connection.",
-                L"BlackSpeak Update Check",
-                MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            L"Unable to connect to the update server.\nPlease check your internet connection and try again.",
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONWARNING | MB_TOPMOST);
         g_isManualUpdateCheck = FALSE;
         return 0;
     }
@@ -345,13 +333,10 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     if (totalBytes == 0) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Empty response from update server.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
-        if (isManual) {
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                L"Received empty response from update server.",
-                L"BlackSpeak Update Check",
-                MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            L"Received empty response from update server.",
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONWARNING | MB_TOPMOST);
         g_isManualUpdateCheck = FALSE;
         return 0;
     }
@@ -363,13 +348,10 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     if (!JsonExtractString(response, "version", serverVer, sizeof(serverVer))) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Invalid response format.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, FALSE);
-        if (isManual) {
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                L"Failed to parse server update metadata.",
-                L"BlackSpeak Update Check",
-                MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            L"Failed to parse server update metadata.",
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONWARNING | MB_TOPMOST);
         g_isManualUpdateCheck = FALSE;
         return 0;
     }
@@ -386,11 +368,7 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_AVAILABLE;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Update v%s is available!", serverVer);
 
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) {
-            InvalidateRect(hNotifyWnd, NULL, TRUE);
-        }
-
-        // Show update available popup with Download / Later choice
+        // Show update available popup with Download / Later options
         wchar_t msgBoxText[1024];
         swprintf_s(msgBoxText,
             L"A new version of BlackSpeak is available!\n\n"
@@ -402,7 +380,7 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
             serverVer,
             changelog[0] ? changelog : "Performance optimizations and styling improvements.");
 
-        int userChoice = MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+        int userChoice = MessageBoxW(hParent,
             msgBoxText,
             L"BlackSpeak - Update Available",
             MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_DEFBUTTON1);
@@ -414,23 +392,17 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
         g_updateState.status = UPDATE_STATUS_UP_TO_DATE;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "BlackSpeak is up to date (v%s).", PLUGIN_VERSION_STR);
 
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) {
-            InvalidateRect(hNotifyWnd, NULL, TRUE);
-        }
+        wchar_t msgBoxText[512];
+        swprintf_s(msgBoxText,
+            L"BlackSpeak is up to date!\n\n"
+            L"You are currently running the latest version (v%S).\n"
+            L"No updates are needed.",
+            PLUGIN_VERSION_STR);
 
-        if (isManual) {
-            wchar_t msgBoxText[512];
-            swprintf_s(msgBoxText,
-                L"BlackSpeak is up to date!\n\n"
-                L"You are currently running the latest version (v%S).\n"
-                L"No updates are needed.",
-                PLUGIN_VERSION_STR);
-
-            MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
-                msgBoxText,
-                L"BlackSpeak - Check for Update",
-                MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
-        }
+        MessageBoxW(hParent,
+            msgBoxText,
+            L"BlackSpeak - Check for Update",
+            MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
     }
 
     g_isManualUpdateCheck = FALSE;
@@ -439,15 +411,15 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
 
 static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     HWND hNotifyWnd = (HWND)lpParam;
+    HWND hParent = hNotifyWnd ? hNotifyWnd : GetForegroundWindow();
     g_updateState.status = UPDATE_STATUS_DOWNLOADING;
     snprintf(g_updateState.message, sizeof(g_updateState.message), "Downloading update package...");
-    if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
 
     const char* url = g_updateState.downloadUrl;
     if (!url || strlen(url) == 0) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Download URL is not specified.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+        MessageBoxW(hParent, L"Download URL is missing from update metadata.", L"Update Error", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return 0;
     }
 
@@ -460,7 +432,7 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     if (!hInternet) {
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Network initialization failed.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+        MessageBoxW(hParent, L"Network initialization failed.", L"Update Error", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return 0;
     }
 
@@ -474,7 +446,7 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         InternetCloseHandle(hInternet);
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Failed to start package download.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+        MessageBoxW(hParent, L"Failed to start package download.", L"Update Error", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return 0;
     }
 
@@ -485,7 +457,7 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         InternetCloseHandle(hInternet);
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Could not create temporary file.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+        MessageBoxW(hParent, L"Could not create temporary file for update.", L"Update Error", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return 0;
     }
 
@@ -506,13 +478,12 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         DeleteFileA(destFile);
         g_updateState.status = UPDATE_STATUS_ERROR;
         snprintf(g_updateState.message, sizeof(g_updateState.message), "Downloaded update file was empty.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
+        MessageBoxW(hParent, L"Downloaded update file was empty.", L"Update Error", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return 0;
     }
 
     g_updateState.status = UPDATE_STATUS_DOWNLOADED;
     snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded! Ready to install.");
-    if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
 
     wchar_t msgBoxText[512];
     swprintf_s(msgBoxText,
@@ -521,7 +492,7 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         L"Close TeamSpeak 3 and start installation now?",
         g_updateState.latestVersion);
 
-    int userChoice = MessageBoxW(hNotifyWnd ? hNotifyWnd : GetForegroundWindow(),
+    int userChoice = MessageBoxW(hParent,
         msgBoxText,
         L"BlackSpeak Auto-Updater",
         MB_YESNO | MB_ICONQUESTION | MB_TOPMOST);
@@ -553,9 +524,6 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
 
         Sleep(400);
         ExitProcess(0);
-    } else {
-        snprintf(g_updateState.message, sizeof(g_updateState.message), "Update downloaded. Ready to install later.");
-        if (hNotifyWnd && IsWindow(hNotifyWnd)) InvalidateRect(hNotifyWnd, NULL, TRUE);
     }
 
     return 0;
@@ -767,8 +735,6 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     static HWND hChk = NULL;
     static HWND hApply = NULL;
     static HWND hCancel = NULL;
-    static HWND hCheckUpdate = NULL;
-    static HWND hDoUpdate = NULL;
 
     switch (msg) {
     case WM_CREATE: {
@@ -803,26 +769,14 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         SendMessage(hCombo, CB_SETCURSEL, g_selectedPaletteIndex, 0);
 
-        // Check for Update Button
-        hCheckUpdate = CreateWindowW(L"BUTTON", L"Check for Update", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 350, 314, 135, 30, hwnd, (HMENU)IDC_CHECK_UPDATE_BTN, g_hInst, NULL);
-        SendMessage(hCheckUpdate, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
-
-        // Update Now Button (shown when update is available)
-        hDoUpdate = CreateWindowW(L"BUTTON", L"⚡ Update Now", WS_CHILD | BS_OWNERDRAW, 350, 350, 135, 32, hwnd, (HMENU)IDC_DO_UPDATE_BTN, g_hInst, NULL);
-        SendMessage(hDoUpdate, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
-
         // Bottom Action Buttons
-        hCancel = CreateWindowW(L"BUTTON", L"Close", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 300, 430, 84, 32, hwnd, (HMENU)IDC_CANCEL_BTN, g_hInst, NULL);
+        hCancel = CreateWindowW(L"BUTTON", L"Close", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 300, 306, 84, 32, hwnd, (HMENU)IDC_CANCEL_BTN, g_hInst, NULL);
         SendMessage(hCancel, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
-        hApply = CreateWindowW(L"BUTTON", L"Apply", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 395, 430, 100, 32, hwnd, (HMENU)IDC_APPLY_BTN, g_hInst, NULL);
+        hApply = CreateWindowW(L"BUTTON", L"Apply", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 395, 306, 100, 32, hwnd, (HMENU)IDC_APPLY_BTN, g_hInst, NULL);
         SendMessage(hApply, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
         g_statusText[0] = L'\0';
-
-        if (g_updateState.status == UPDATE_STATUS_IDLE) {
-            StartCheckForUpdates(hwnd, FALSE);
-        }
         break;
     }
 
@@ -884,48 +838,6 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             swprintf_s(hexBuf, L"%S", pal.accent);
             DrawTextW(dis->hDC, hexBuf, -1, &rHex, DT_RIGHT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-            return TRUE;
-        }
-        else if (dis->CtlID == IDC_CHECK_UPDATE_BTN) {
-            BOOL isPressed = (dis->itemState & ODS_SELECTED);
-            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(32, 40, 56) : RGB(20, 25, 36));
-            FillRect(dis->hDC, &dis->rcItem, hBtnBg);
-            DeleteObject(hBtnBg);
-
-            HPEN hBorder = CreatePen(PS_SOLID, 1, RGB(45, 55, 75));
-            HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBorder);
-            HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
-            RoundRect(dis->hDC, dis->rcItem.left, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom, 4, 4);
-            SelectObject(dis->hDC, oldPen);
-            SelectObject(dis->hDC, oldBrush);
-            DeleteObject(hBorder);
-
-            SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(200, 215, 235));
-            SelectObject(dis->hDC, hBtnFont);
-            const wchar_t* btnText = (g_updateState.status == UPDATE_STATUS_CHECKING) ? L"Checking..." : L"Check for Update";
-            DrawTextW(dis->hDC, btnText, -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-            return TRUE;
-        }
-        else if (dis->CtlID == IDC_DO_UPDATE_BTN) {
-            BOOL isPressed = (dis->itemState & ODS_SELECTED);
-            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(4, 120, 87) : RGB(5, 150, 105));
-            FillRect(dis->hDC, &dis->rcItem, hBtnBg);
-            DeleteObject(hBtnBg);
-
-            HPEN hBorder = CreatePen(PS_SOLID, 1, RGB(52, 211, 153));
-            HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBorder);
-            HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
-            RoundRect(dis->hDC, dis->rcItem.left, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom, 4, 4);
-            SelectObject(dis->hDC, oldPen);
-            SelectObject(dis->hDC, oldBrush);
-            DeleteObject(hBorder);
-
-            SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(255, 255, 255));
-            SelectObject(dis->hDC, hBtnFont);
-            const wchar_t* btnText = (g_updateState.status == UPDATE_STATUS_DOWNLOADING) ? L"Downloading..." : L"⚡ Update Now";
-            DrawTextW(dis->hDC, btnText, -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             return TRUE;
         }
         else if (dis->CtlID == IDC_APPLY_BTN) {
@@ -1016,13 +928,13 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         if (curSel >= 0 && curSel < (int)PALETTE_COUNT) {
             const AccentPalette& pal = g_palettes[curSel];
 
-            RECT rCard = { 30, 178, 495, 288 };
+            RECT rCard = { 30, 178, 495, 286 };
             FillRect(hdc, &rCard, hCardBrush);
 
             HPEN hCardPen = CreatePen(PS_SOLID, 1, RGB(32, 40, 56));
             HPEN pOld = (HPEN)SelectObject(hdc, hCardPen);
             HBRUSH bOld = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 30, 178, 495, 288, 6, 6);
+            RoundRect(hdc, 30, 178, 495, 286, 6, 6);
             SelectObject(hdc, pOld);
             SelectObject(hdc, bOld);
             DeleteObject(hCardPen);
@@ -1047,93 +959,45 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // Hex values line
             SetTextColor(hdc, RGB(160, 175, 200));
             SelectObject(hdc, hHexFont);
-            RECT rHex = { 44, 238, 480, 256 };
+            RECT rHex = { 44, 236, 480, 254 };
             wchar_t hexBuf[128];
             swprintf_s(hexBuf, L"Primary: %S   |   Hover: %S   |   Glow: %S", pal.primary, pal.accent, pal.glow);
             DrawTextW(hdc, hexBuf, -1, &rHex, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
             // Mini Live Channel Pill
             HBRUSH hSimChan = CreateSolidBrush(pal.colorRef);
-            RECT rSimChan = { 44, 258, 200, 280 };
+            RECT rSimChan = { 44, 256, 200, 278 };
             FillRect(hdc, &rSimChan, hSimChan);
             DeleteObject(hSimChan);
 
             SetTextColor(hdc, RGB(255, 255, 255));
             SelectObject(hdc, hSubFont);
-            RECT rSimChanText = { 50, 258, 194, 280 };
+            RECT rSimChanText = { 50, 256, 194, 278 };
             DrawTextW(hdc, L"🔊 Active Channel", -1, &rSimChanText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
             // Mini Action Button Preview
             HBRUSH hSimBtnBg = CreateSolidBrush(RGB(18, 24, 36));
-            RECT rSimBtn = { 210, 258, 310, 280 };
+            RECT rSimBtn = { 210, 256, 310, 278 };
             FillRect(hdc, &rSimBtn, hSimBtnBg);
             DeleteObject(hSimBtnBg);
 
             HPEN hSimBtnBorder = CreatePen(PS_SOLID, 1, pal.colorRef);
             HPEN pOld2 = (HPEN)SelectObject(hdc, hSimBtnBorder);
             HBRUSH bOld2 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 210, 258, 310, 280, 4, 4);
+            RoundRect(hdc, 210, 256, 310, 278, 4, 4);
             SelectObject(hdc, pOld2);
             SelectObject(hdc, bOld2);
             DeleteObject(hSimBtnBorder);
 
             SetTextColor(hdc, RGB(255, 255, 255));
             SelectObject(hdc, hSubFont);
-            RECT rSimBtnText = { 210, 258, 310, 280 };
+            RECT rSimBtnText = { 210, 256, 310, 278 };
             DrawTextW(hdc, L"Button Preview", -1, &rSimBtnText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
         }
 
-        // Auto-Update & Version Card
-        RECT rUpdCard = { 30, 300, 495, 398 };
-        FillRect(hdc, &rUpdCard, hCardBrush);
-
-        HPEN hUpdBorder = CreatePen(PS_SOLID, 1, RGB(32, 40, 56));
-        HPEN pOldUpd = (HPEN)SelectObject(hdc, hUpdBorder);
-        HBRUSH bOldUpd = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-        RoundRect(hdc, 30, 300, 495, 398, 6, 6);
-        SelectObject(hdc, pOldUpd);
-        SelectObject(hdc, bOldUpd);
-        DeleteObject(hUpdBorder);
-
-        // Section Title: Suite Version
-        SetTextColor(hdc, RGB(240, 245, 255));
-        SelectObject(hdc, hSectionFont);
-        RECT rUpdTitle = { 44, 310, 280, 330 };
-        DrawTextW(hdc, L"Suite Updates & Version", -1, &rUpdTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-
-        // Version Badge
-        SetTextColor(hdc, RGB(148, 163, 184));
-        SelectObject(hdc, hBadgeFont);
-        wchar_t verBadge[64];
-        swprintf_s(verBadge, L"Installed: v%S", PLUGIN_VERSION_STR);
-        RECT rBadge = { 44, 330, 340, 348 };
-        DrawTextW(hdc, verBadge, -1, &rBadge, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-
-        // Status Text in Card
-        wchar_t wMsg[256];
-        swprintf_s(wMsg, L"%S", g_updateState.message);
-
-        if (g_updateState.status == UPDATE_STATUS_AVAILABLE) {
-            SetTextColor(hdc, RGB(52, 211, 153));
-            ShowWindow(hDoUpdate, SW_SHOW);
-        } else if (g_updateState.status == UPDATE_STATUS_ERROR) {
-            SetTextColor(hdc, RGB(248, 113, 113));
-            ShowWindow(hDoUpdate, SW_HIDE);
-        } else if (g_updateState.status == UPDATE_STATUS_UP_TO_DATE) {
-            SetTextColor(hdc, RGB(96, 165, 250));
-            ShowWindow(hDoUpdate, SW_HIDE);
-        } else {
-            SetTextColor(hdc, RGB(160, 175, 200));
-            ShowWindow(hDoUpdate, SW_HIDE);
-        }
-
-        SelectObject(hdc, hSubFont);
-        RECT rUpdStatus = { 44, 353, 335, 390 };
-        DrawTextW(hdc, wMsg, -1, &rUpdStatus, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
-
         // Bottom Separator Line
-        MoveToEx(hdc, 0, 415, NULL);
-        LineTo(hdc, 530, 415);
+        MoveToEx(hdc, 0, 296, NULL);
+        LineTo(hdc, 530, 296);
         SelectObject(hdc, oldPen);
         DeleteObject(hLinePen);
 
@@ -1141,7 +1005,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         if (g_statusText[0] != L'\0') {
             SetTextColor(hdc, RGB(52, 211, 153));
             SelectObject(hdc, hSectionFont);
-            RECT rStatus = { 30, 436, 280, 458 };
+            RECT rStatus = { 30, 312, 280, 334 };
             DrawTextW(hdc, g_statusText, -1, &rStatus, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
         }
 
@@ -1185,12 +1049,6 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         if (wmId == IDC_ACCENT_COMBO && wmEvent == CBN_SELCHANGE) {
             g_statusText[0] = L'\0';
             InvalidateRect(hwnd, NULL, TRUE);
-        }
-        else if (wmId == IDC_CHECK_UPDATE_BTN) {
-            StartCheckForUpdates(hwnd, TRUE);
-        }
-        else if (wmId == IDC_DO_UPDATE_BTN) {
-            StartDownloadAndInstallUpdate(hwnd);
         }
         else if (wmId == IDC_CANCEL_BTN) {
             DestroyWindow(hwnd);
@@ -1257,7 +1115,7 @@ static void ShowConfigWindow() {
     }
 
     int width = 530;
-    int height = 515;
+    int height = 385;
     int x = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
     int y = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
 
@@ -1339,10 +1197,11 @@ PLUGINS_EXPORTDLL void ts3plugin_initMenus(struct PluginMenuItem*** menuItems, c
         *menuIcon = NULL;
     }
 
-    *menuItems = (struct PluginMenuItem**)malloc(sizeof(struct PluginMenuItem*) * 2);
+    *menuItems = (struct PluginMenuItem**)malloc(sizeof(struct PluginMenuItem*) * 3);
     if (!*menuItems) return;
     (*menuItems)[0] = createMenuItem(PLUGIN_MENU_TYPE_GLOBAL, 1, "Theme", "");
-    (*menuItems)[1] = NULL;
+    (*menuItems)[1] = createMenuItem(PLUGIN_MENU_TYPE_GLOBAL, 2, "Check for Update", "");
+    (*menuItems)[2] = NULL;
 }
 
 PLUGINS_EXPORTDLL void ts3plugin_onMenuItemEvent(uint64_t serverConnectionHandlerID, enum PluginMenuType type, int menuItemID, uint64_t selectedItemID) {
@@ -1351,6 +1210,8 @@ PLUGINS_EXPORTDLL void ts3plugin_onMenuItemEvent(uint64_t serverConnectionHandle
     (void)selectedItemID;
     if (menuItemID == 1) {
         ShowConfigWindow();
+    } else if (menuItemID == 2) {
+        StartCheckForUpdates(NULL, TRUE);
     }
 }
 
