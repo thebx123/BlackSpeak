@@ -846,43 +846,70 @@ static void DrawTs3GroupBox(HDC hdc, RECT rc, const wchar_t* title, HFONT hFont)
 // Settings Dialog Window Procedure (TeamSpeak 3 Options Style)
 // ==========================================
 
+// Hover tracking state for bottom buttons (OK/Cancel/Apply)
+static int  s_hoveredBtnId  = 0;
+static BOOL s_trackingLeave = FALSE;
+
 static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    static HBRUSH hBgBrush = NULL;
-    static HFONT hHeaderFont = NULL;
-    static HFONT hSubFont = NULL;
-    static HFONT hSectionFont = NULL;
-    static HFONT hNormalFont = NULL;
-    static HFONT hBtnFont = NULL;
-    static HFONT hHexFont = NULL;
-    static HFONT hBadgeFont = NULL;
-    static HWND hCombo = NULL;
-    static HWND hChk = NULL;
-    static HWND hOk = NULL;
-    static HWND hCancel = NULL;
-    static HWND hApply = NULL;
+    static HBRUSH hBgBrush    = NULL;
+    static HFONT  hHeaderFont = NULL;  // QSS: font: 16px 'Segoe UI'; font-weight: bold
+    static HFONT  hSubFont    = NULL;  // QSS: font-size: 9pt  (#8A8F9D description)
+    static HFONT  hSectionFont= NULL;  // QSS: font-size: 9pt  (#A0A0A0 group title)
+    static HFONT  hNormalFont = NULL;  // QSS: font-size: 9pt  (#FFFFFF body)
+    static HFONT  hBtnFont    = NULL;  // QSS: font-size: 9pt  (QPushButton)
+    static HFONT  hHexFont    = NULL;  // Consolas 10px for hex codes
+    static HFONT  hBadgeFont  = NULL;  // Segoe UI 10px Bold for checkmark / badge
+    static HWND   hCombo      = NULL;
+    static HWND   hChk        = NULL;
+    static HWND   hOk         = NULL;
+    static HWND   hCancel     = NULL;
+    static HWND   hApply      = NULL;
 
     switch (msg) {
     case WM_CREATE: {
-        // Native TeamSpeak 3 dark background #060709
+        // -------------------------------------------------------
+        // Color tokens directly from qss_template.h:
+        //   Window bg        : #060709  RGB(6,7,9)
+        //   Button bg        : #0F1117  RGB(15,17,23)
+        //   Button border    : #1E222D  RGB(30,34,45)
+        //   Button hover bg  : #1A1E26  RGB(26,30,38)
+        //   GroupBox border  : #1E222D  RGB(30,34,45)
+        //   GroupBox title   : #A0A0A0  RGB(160,160,160)
+        //   Body text        : #FFFFFF
+        //   Sub-desc text    : #8A8F9D  RGB(138,143,157)
+        //   Muted text       : #64748B  RGB(100,116,139)
+        // -------------------------------------------------------
         hBgBrush = CreateSolidBrush(RGB(6, 7, 9));
 
-        // Segoe UI font hierarchy
-        hHeaderFont = CreateFontW(17, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hSubFont = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hSectionFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hNormalFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hBtnFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hHexFont = CreateFontW(11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Consolas");
-        hBadgeFont = CreateFontW(11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        // DPI-correct font sizes (matching QSS pt values at 96 dpi baseline)
+        HDC hScreen = GetDC(NULL);
+        int dpi = GetDeviceCaps(hScreen, LOGPIXELSY);
+        ReleaseDC(NULL, hScreen);
+        // QSS headline  : font: 16px Segoe UI Bold  => -MulDiv(16, dpi, 96)
+        // QSS 9pt body  : 9pt = 12px at 96dpi       => -MulDiv(12, dpi, 96)
+        // Consolas hex  : 10px
+        int hPx16 = -MulDiv(16, dpi, 96);
+        int hPx12 = -MulDiv(12, dpi, 96);
+        int hPx11 = -MulDiv(11, dpi, 96);
+        int hPx10 = -MulDiv(10, dpi, 96);
+
+        hHeaderFont  = CreateFontW(hPx16, 0, 0, 0, FW_BOLD,   FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hSubFont     = CreateFontW(hPx12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hSectionFont = CreateFontW(hPx12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hNormalFont  = CreateFontW(hPx12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hBtnFont     = CreateFontW(hPx12, 0, 0, 0, 500,       FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hHexFont     = CreateFontW(hPx10, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Consolas");
+        hBadgeFont   = CreateFontW(hPx11, 0, 0, 0, FW_BOLD,   FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 
         s_hComboFont = hNormalFont;
 
         ApplyDarkTitleBar(hwnd);
 
-        // Custom TS3 Styled Checkbox (Solid Accent Rounded Box)
+        // Owner-draw Checkbox — matches QCheckBox::indicator from QSS (14x14, #0F1117 bg, #1E222D border, accent filled when checked)
         hChk = CreateWindowW(L"BUTTON", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 32, 75, 236, 22, hwnd, (HMENU)IDC_ENABLE_CHECKBOX, g_hInst, NULL);
 
-        // Accent Palette Dropdown with Custom Dark Subclass
+        // Owner-draw ComboBox (dark subclass replaces default white arrow)
+        // Matches QComboBox from QSS: bg #0F1117, border #1E222D, padding 4px 8px
         hCombo = CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL, 32, 172, 236, 300, hwnd, (HMENU)IDC_ACCENT_COMBO, g_hInst, NULL);
         SendMessage(hCombo, WM_SETFONT, (WPARAM)hNormalFont, TRUE);
 
@@ -890,20 +917,61 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)g_palettes[i].name);
         }
         SendMessage(hCombo, CB_SETCURSEL, g_selectedPaletteIndex, 0);
-
         s_origComboProc = (WNDPROC)SetWindowLongPtrW(hCombo, GWLP_WNDPROC, (LONG_PTR)DarkComboSubclassProc);
 
-        // TeamSpeak 3 standard Bottom Buttons (OK, Cancel, Apply)
-        hOk = CreateWindowW(L"BUTTON", L"OK", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 350, 396, 76, 26, hwnd, (HMENU)IDC_OK_BTN, g_hInst, NULL);
-        SendMessage(hOk, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
-
+        // Owner-draw Bottom Buttons — matches QPushButton from QSS:
+        // bg #0F1117, border 1px #1E222D, border-radius 4px, padding 5px 16px, font-weight 500
+        // Hover: bg #1A1E26, border accent color
+        // Pressed: bg #060709, border #141720
+        hOk     = CreateWindowW(L"BUTTON", L"OK",     WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 351, 396, 76, 26, hwnd, (HMENU)IDC_OK_BTN,     g_hInst, NULL);
         hCancel = CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 434, 396, 76, 26, hwnd, (HMENU)IDC_CANCEL_BTN, g_hInst, NULL);
+        hApply  = CreateWindowW(L"BUTTON", L"Apply",  WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 517, 396, 76, 26, hwnd, (HMENU)IDC_APPLY_BTN,  g_hInst, NULL);
+        SendMessage(hOk,     WM_SETFONT, (WPARAM)hBtnFont, TRUE);
         SendMessage(hCancel, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
+        SendMessage(hApply,  WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
-        hApply = CreateWindowW(L"BUTTON", L"Apply", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 518, 396, 76, 26, hwnd, (HMENU)IDC_APPLY_BTN, g_hInst, NULL);
-        SendMessage(hApply, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
-
+        s_hoveredBtnId  = 0;
+        s_trackingLeave = FALSE;
         g_statusText[0] = L'\0';
+        break;
+    }
+
+    case WM_MOUSEMOVE: {
+        // Track hover over OK/Cancel/Apply buttons for QSS-style hover effect
+        POINT pt = { LOWORD(lParam), HIWORD(lParam) };
+        int newHover = 0;
+        HWND btns[3] = { hOk, hCancel, hApply };
+        int  ids[3]  = { IDC_OK_BTN, IDC_CANCEL_BTN, IDC_APPLY_BTN };
+        for (int i = 0; i < 3; ++i) {
+            if (!btns[i]) continue;
+            RECT r;
+            GetWindowRect(btns[i], &r);
+            ScreenToClient(hwnd, (POINT*)&r.left);
+            ScreenToClient(hwnd, (POINT*)&r.right);
+            if (PtInRect(&r, pt)) { newHover = ids[i]; break; }
+        }
+        if (newHover != s_hoveredBtnId) {
+            s_hoveredBtnId = newHover;
+            InvalidateRect(hOk,     NULL, TRUE);
+            InvalidateRect(hCancel, NULL, TRUE);
+            InvalidateRect(hApply,  NULL, TRUE);
+        }
+        if (!s_trackingLeave) {
+            TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hwnd, 0 };
+            TrackMouseEvent(&tme);
+            s_trackingLeave = TRUE;
+        }
+        break;
+    }
+
+    case WM_MOUSELEAVE: {
+        s_trackingLeave = FALSE;
+        if (s_hoveredBtnId != 0) {
+            s_hoveredBtnId = 0;
+            InvalidateRect(hOk,     NULL, TRUE);
+            InvalidateRect(hCancel, NULL, TRUE);
+            InvalidateRect(hApply,  NULL, TRUE);
+        }
         break;
     }
 
@@ -1019,27 +1087,38 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             return TRUE;
         }
         else if (dis->CtlID == IDC_OK_BTN || dis->CtlID == IDC_CANCEL_BTN || dis->CtlID == IDC_APPLY_BTN) {
+            // Match QSS QPushButton exactly:
+            //   Normal : bg #0F1117  border 1px #1E222D  radius 4px  padding 5px 16px  font-weight 500
+            //   Hover  : bg #1A1E26  border 1px accent
+            //   Pressed: bg #060709  border 1px #141720
             BOOL isPressed = (dis->itemState & ODS_SELECTED);
-            const wchar_t* btnLabel = L"";
-            if (dis->CtlID == IDC_OK_BTN) btnLabel = L"OK";
-            else if (dis->CtlID == IDC_CANCEL_BTN) btnLabel = L"Cancel";
-            else if (dis->CtlID == IDC_APPLY_BTN) btnLabel = L"Apply";
+            BOOL isHovered = (s_hoveredBtnId == (int)dis->CtlID) && !isPressed;
 
-            // TeamSpeak 3 Style Button: #0F1117 with 1px #1E222D border & 4px radius
-            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(6, 7, 9) : RGB(15, 17, 23));
+            const wchar_t* btnLabel = L"";
+            if (dis->CtlID == IDC_OK_BTN)     btnLabel = L"OK";
+            else if (dis->CtlID == IDC_CANCEL_BTN) btnLabel = L"Cancel";
+            else if (dis->CtlID == IDC_APPLY_BTN)  btnLabel = L"Apply";
+
+            COLORREF accentBorder = g_palettes[g_selectedPaletteIndex].colorRef;
+
+            COLORREF bgColor     = isPressed ? RGB(6,7,9)    : (isHovered ? RGB(26,30,38)  : RGB(15,17,23));
+            COLORREF borderColor = isPressed ? RGB(20,23,32) : (isHovered ? accentBorder   : RGB(30,34,45));
+
+            HBRUSH hBtnBg = CreateSolidBrush(bgColor);
             FillRect(dis->hDC, &dis->rcItem, hBtnBg);
             DeleteObject(hBtnBg);
 
-            HPEN hBorder = CreatePen(PS_SOLID, 1, isPressed ? RGB(50, 60, 80) : RGB(30, 34, 45));
-            HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBorder);
-            HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
+            HPEN hBorder = CreatePen(PS_SOLID, 1, borderColor);
+            HPEN oldPen  = (HPEN)SelectObject(dis->hDC, hBorder);
+            HBRUSH oldBr = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
             RoundRect(dis->hDC, dis->rcItem.left, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom, 4, 4);
             SelectObject(dis->hDC, oldPen);
-            SelectObject(dis->hDC, oldBrush);
+            SelectObject(dis->hDC, oldBr);
             DeleteObject(hBorder);
 
             SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(240, 240, 240));
+            // QPushButton text: #FFFFFF normal, #FFFFFF hover/pressed  — disabled: #555A64
+            SetTextColor(dis->hDC, RGB(255, 255, 255));
             SelectObject(dis->hDC, hBtnFont);
             DrawTextW(dis->hDC, btnLabel, -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             return TRUE;
@@ -1051,39 +1130,51 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        // Header Section (matches TeamSpeak 3 Options Headline)
+        // -------------------------------------------------------
+        // QSS token reference used below:
+        //  #OptionsHeadlineTitleLabel  : font 16px Segoe UI Bold, #FFFFFF
+        //  #OptionsHeadlineDescriptionLabel : 9pt Segoe UI, #8A8F9D
+        //  QGroupBox::title            : #A0A0A0
+        //  QWidget (body)              : 9pt Segoe UI, #FFFFFF
+        //  Muted / secondary text      : #64748B
+        // -------------------------------------------------------
+
+        // Headline — QSS: QLabel#OptionsHeadlineTitleLabel { font: 16px 'Segoe UI'; font-weight: bold; color: #FFFFFF }
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, RGB(255, 255, 255));
         SelectObject(hdc, hHeaderFont);
-        RECT rTitle = { 18, 10, 500, 28 };
+        RECT rTitle = { 18, 10, 600, 32 };
         DrawTextW(hdc, L"Design - BlackSpeak Theme", -1, &rTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        SetTextColor(hdc, RGB(148, 163, 184));
+        // Sub-description — QSS: QLabel#OptionsHeadlineDescriptionLabel { color: #8A8F9D; font-size: 9pt }
+        SetTextColor(hdc, RGB(138, 143, 157));   // #8A8F9D
         SelectObject(hdc, hSubFont);
-        RECT rSub = { 18, 29, 500, 46 };
+        RECT rSub = { 18, 34, 620, 50 };
         DrawTextW(hdc, L"Configure the BlackSpeak Dark Theme and Accent Palette for TeamSpeak", -1, &rSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        // GroupBox 1: Style & Integration (Left Top)
-        RECT rcGb1 = { 18, 54, 280, 130 };
-        DrawTs3GroupBox(hdc, rcGb1, L"Theme Activation", hSubFont);
+        // GroupBox 1 — QSS: QGroupBox { border: 1px solid #1E222D; border-radius: 4px }
+        //              QGroupBox::title { color: #A0A0A0 }
+        RECT rcGb1 = { 18, 56, 280, 134 };
+        DrawTs3GroupBox(hdc, rcGb1, L"Theme Activation", hSectionFont);
 
-        SetTextColor(hdc, RGB(130, 140, 155));
+        // Description inside GroupBox 1 — muted, #64748B, 9pt Segoe UI
+        SetTextColor(hdc, RGB(100, 116, 139));   // #64748B
         SelectObject(hdc, hSubFont);
-        RECT rGb1Desc = { 32, 100, 270, 122 };
+        RECT rGb1Desc = { 32, 103, 270, 126 };
         DrawTextW(hdc, L"Sets BlackSpeak as your default active style.", -1, &rGb1Desc, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         // GroupBox 2: Accent Palette Selection (Left Bottom)
-        RECT rcGb2 = { 18, 142, 280, 375 };
-        DrawTs3GroupBox(hdc, rcGb2, L"Accent Palette", hSubFont);
+        RECT rcGb2 = { 18, 144, 280, 380 };
+        DrawTs3GroupBox(hdc, rcGb2, L"Accent Palette", hSectionFont);
 
         int curSel = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
         if (curSel < 0 || curSel >= (int)PALETTE_COUNT) curSel = g_selectedPaletteIndex;
         const AccentPalette& pal = g_palettes[curSel];
 
-        // Tokens Info inside GroupBox 2
-        SetTextColor(hdc, RGB(148, 163, 184));
+        // Color token info — #8A8F9D label, Consolas hex values — matches QSS 9pt body
+        SetTextColor(hdc, RGB(138, 143, 157));   // #8A8F9D
         SelectObject(hdc, hSubFont);
-        RECT rTokHead = { 32, 212, 270, 230 };
+        RECT rTokHead = { 32, 214, 270, 232 };
         DrawTextW(hdc, L"Palette Color Codes:", -1, &rTokHead, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         wchar_t bufTok1[64], bufTok2[64], bufTok3[64];
@@ -1091,11 +1182,12 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         swprintf_s(bufTok2, L"• Hover   : %S", pal.accent);
         swprintf_s(bufTok3, L"• Glow    : %S", pal.glow);
 
-        SetTextColor(hdc, RGB(220, 225, 235));
+        // Hex values in Consolas — matches QStatusBar label-like styling
+        SetTextColor(hdc, RGB(226, 232, 240));   // near-white for code values
         SelectObject(hdc, hHexFont);
-        RECT rT1 = { 34, 234, 270, 250 };
-        RECT rT2 = { 34, 252, 270, 268 };
-        RECT rT3 = { 34, 270, 270, 286 };
+        RECT rT1 = { 34, 236, 270, 252 };
+        RECT rT2 = { 34, 254, 270, 270 };
+        RECT rT3 = { 34, 272, 270, 288 };
         DrawTextW(hdc, bufTok1, -1, &rT1, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
         DrawTextW(hdc, bufTok2, -1, &rT2, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
         DrawTextW(hdc, bufTok3, -1, &rT3, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
