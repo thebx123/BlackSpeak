@@ -119,17 +119,18 @@ static LRESULT CALLBACK DarkComboSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
         if (curSel >= 0 && curSel < (int)PALETTE_COUNT) {
             const AccentPalette& pal = g_palettes[curSel];
 
-            // Swatch Pill
+            // Swatch Square (14x14 square with 3px rounded corners)
+            int boxSize = 14;
             int pillLeft = rc.left + 8;
-            int pillTop = rc.top + 5;
-            int pillRight = pillLeft + 16;
-            int pillBottom = rc.bottom - 5;
+            int pillTop = rc.top + (rc.bottom - rc.top - boxSize) / 2;
+            int pillRight = pillLeft + boxSize;
+            int pillBottom = pillTop + boxSize;
 
             HBRUSH hSw = CreateSolidBrush(pal.colorRef);
             HPEN hSwBorder = CreatePen(PS_SOLID, 1, RGB(45, 55, 75));
             HPEN pOld = (HPEN)SelectObject(hdc, hSwBorder);
             HBRUSH bOld = (HBRUSH)SelectObject(hdc, hSw);
-            RoundRect(hdc, pillLeft, pillTop, pillRight, pillBottom, 3, 3);
+            RoundRect(hdc, pillLeft, pillTop, pillRight, pillBottom, 4, 4);
             SelectObject(hdc, pOld);
             SelectObject(hdc, bOld);
             DeleteObject(hSwBorder);
@@ -166,22 +167,34 @@ static void ApplyDarkTitleBar(HWND hwnd) {
     GetWindowThreadProcessId(hwnd, &pid);
     if (pid != GetCurrentProcessId()) return;
 
-    // 1. Enable Windows 11 Immersive Dark Mode
-    BOOL darkMode = TRUE;
-    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode));
-    DwmSetWindowAttribute(hwnd, 19, &darkMode, sizeof(darkMode));
+    if (g_isThemeEnabled) {
+        // 1. Enable Windows 11 Immersive Dark Mode
+        BOOL darkMode = TRUE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode));
+        DwmSetWindowAttribute(hwnd, 19, &darkMode, sizeof(darkMode));
 
-    // 2. Custom Titlebar Background Color: #060709 (RGB: 6, 7, 9)
-    COLORREF captionColor = RGB(6, 7, 9);
-    DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
+        // 2. Custom Titlebar Background Color: #060709 (RGB: 6, 7, 9)
+        COLORREF captionColor = RGB(6, 7, 9);
+        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
 
-    // 3. Custom Titlebar Text Color: #FFFFFF (White)
-    COLORREF textColor = RGB(255, 255, 255);
-    DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &textColor, sizeof(textColor));
+        // 3. Custom Titlebar Text Color: #FFFFFF (White)
+        COLORREF textColor = RGB(255, 255, 255);
+        DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &textColor, sizeof(textColor));
 
-    // 4. Custom Window Border Color: #141720 (RGB: 20, 23, 32)
-    COLORREF borderColor = RGB(20, 23, 32);
-    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
+        // 4. Custom Window Border Color: #141720 (RGB: 20, 23, 32)
+        COLORREF borderColor = RGB(20, 23, 32);
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
+    } else {
+        // Reset to Windows system default styling
+        BOOL darkMode = FALSE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode));
+        DwmSetWindowAttribute(hwnd, 19, &darkMode, sizeof(darkMode));
+
+        COLORREF defaultColor = 0xFFFFFFFF; // DWMWA_COLOR_DEFAULT
+        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &defaultColor, sizeof(defaultColor));
+        DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &defaultColor, sizeof(defaultColor));
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &defaultColor, sizeof(defaultColor));
+    }
 }
 
 static BOOL CALLBACK EnumWindowsCallback(HWND hwnd, LPARAM lParam) {
@@ -820,6 +833,8 @@ static void ApplyThemeAndPalette() {
         ApplyLiveQtStyleSheet("");
     }
 
+    EnumWindows(EnumWindowsCallback, 0);
+
     free(generatedQss);
 }
 
@@ -1016,30 +1031,23 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             COLORREF accentColor = g_palettes[g_selectedPaletteIndex].colorRef;
 
             if (isChecked) {
-                // TeamSpeak 3 Style Solid Blue Rounded Square (Image 2 style)
+                // TeamSpeak 3 Style Solid Blue Rounded Square (no tick mark)
                 HBRUSH hBoxBrush = CreateSolidBrush(accentColor);
                 HPEN hBoxPen = CreatePen(PS_SOLID, 1, accentColor);
                 HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBoxPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hBoxBrush);
-                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 3, 3);
+                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 4, 4);
                 SelectObject(dis->hDC, oldPen);
                 SelectObject(dis->hDC, oldBrush);
                 DeleteObject(hBoxPen);
                 DeleteObject(hBoxBrush);
-
-                // White Checkmark
-                SetBkMode(dis->hDC, TRANSPARENT);
-                SetTextColor(dis->hDC, RGB(255, 255, 255));
-                SelectObject(dis->hDC, hBadgeFont);
-                RECT rCheck = { boxLeft, boxTop - 1, boxRight, boxBottom };
-                DrawTextW(dis->hDC, L"✓", -1, &rCheck, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             } else {
                 // Unchecked Box
                 HBRUSH hBoxBrush = CreateSolidBrush(RGB(15, 17, 23));
                 HPEN hBoxPen = CreatePen(PS_SOLID, 1, RGB(45, 55, 75));
                 HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBoxPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hBoxBrush);
-                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 3, 3);
+                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 4, 4);
                 SelectObject(dis->hDC, oldPen);
                 SelectObject(dis->hDC, oldBrush);
                 DeleteObject(hBoxPen);
@@ -1071,16 +1079,18 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 DeleteObject(hBar);
             }
 
-            int pillLeft = dis->rcItem.left + 10;
-            int pillTop = dis->rcItem.top + 6;
-            int pillRight = pillLeft + 16;
-            int pillBottom = dis->rcItem.bottom - 6;
+            // Swatch Square (14x14 with 4px rounded corners)
+            int boxSize = 14;
+            int pillLeft = dis->rcItem.left + 8;
+            int pillTop = dis->rcItem.top + (dis->rcItem.bottom - dis->rcItem.top - boxSize) / 2;
+            int pillRight = pillLeft + boxSize;
+            int pillBottom = pillTop + boxSize;
 
             HBRUSH hSwatch = CreateSolidBrush(pal.colorRef);
             HPEN hSwatchBorder = CreatePen(PS_SOLID, 1, RGB(60, 70, 90));
             HPEN oldPen = (HPEN)SelectObject(dis->hDC, hSwatchBorder);
             HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hSwatch);
-            RoundRect(dis->hDC, pillLeft, pillTop, pillRight, pillBottom, 3, 3);
+            RoundRect(dis->hDC, pillLeft, pillTop, pillRight, pillBottom, 4, 4);
             SelectObject(dis->hDC, oldPen);
             SelectObject(dis->hDC, oldBrush);
             DeleteObject(hSwatchBorder);
@@ -1166,9 +1176,8 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         RECT rSub = { 18, 34, 620, 50 };
         DrawTextW(hdc, L"Configure the BlackSpeak Dark Theme and Accent Palette for TeamSpeak", -1, &rSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        // GroupBox 1 — QSS: QGroupBox { border: 1px solid #1E222D; border-radius: 4px }
-        //              QGroupBox::title { color: #A0A0A0 }
-        RECT rcGb1 = { 18, 56, 280, 134 };
+        // GroupBox 1 — Theme Activation (Top Left: Y 56 to 140)
+        RECT rcGb1 = { 18, 56, 280, 140 };
         DrawTs3GroupBox(hdc, rcGb1, L"Theme Activation", hSectionFont);
 
         // Description inside GroupBox 1 — muted, #64748B, 9pt Segoe UI
@@ -1177,44 +1186,24 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         RECT rGb1Desc = { 32, 103, 270, 126 };
         DrawTextW(hdc, L"Sets BlackSpeak as your default active style.", -1, &rGb1Desc, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        // GroupBox 2: Accent Palette Selection (Left Bottom)
-        RECT rcGb2 = { 18, 144, 280, 380 };
+        // GroupBox 2: Accent Palette Selection (Bottom Left: Y 148 to 380)
+        RECT rcGb2 = { 18, 148, 280, 380 };
         DrawTs3GroupBox(hdc, rcGb2, L"Accent Palette", hSectionFont);
 
         int curSel = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
         if (curSel < 0 || curSel >= (int)PALETTE_COUNT) curSel = g_selectedPaletteIndex;
         const AccentPalette& pal = g_palettes[curSel];
 
-        // Color token info — #8A8F9D label, Consolas hex values — matches QSS 9pt body
+        // Clean description inside GroupBox 2 (replacing color codes)
         SetTextColor(hdc, RGB(138, 143, 157));   // #8A8F9D
         SelectObject(hdc, hSubFont);
-        RECT rTokHead = { 32, 214, 270, 232 };
-        DrawTextW(hdc, L"Palette Color Codes:", -1, &rTokHead, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-
-        wchar_t bufTok1[64], bufTok2[64], bufTok3[64];
-        swprintf_s(bufTok1, L"• Primary : %S", pal.primary);
-        swprintf_s(bufTok2, L"• Hover   : %S", pal.accent);
-        swprintf_s(bufTok3, L"• Glow    : %S", pal.glow);
-
-        // Hex values in Consolas — matches QStatusBar label-like styling
-        SetTextColor(hdc, RGB(226, 232, 240));   // near-white for code values
-        SelectObject(hdc, hHexFont);
-        RECT rT1 = { 34, 236, 270, 252 };
-        RECT rT2 = { 34, 254, 270, 270 };
-        RECT rT3 = { 34, 272, 270, 288 };
-        DrawTextW(hdc, bufTok1, -1, &rT1, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-        DrawTextW(hdc, bufTok2, -1, &rT2, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-        DrawTextW(hdc, bufTok3, -1, &rT3, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-
-        SetTextColor(hdc, RGB(148, 163, 184));
-        SelectObject(hdc, hSubFont);
-        RECT rTagLine = { 32, 305, 270, 360 };
-        wchar_t bufTag[128];
-        swprintf_s(bufTag, L"Variant: %s\nStyle: Modern Obsidian", pal.tag);
+        RECT rTagLine = { 32, 214, 270, 360 };
+        wchar_t bufTag[256];
+        swprintf_s(bufTag, L"Select an accent color palette to customize channel selection, highlights, and buttons.\n\nVariant: %s\nStyle: Modern Obsidian", pal.tag);
         DrawTextW(hdc, bufTag, -1, &rTagLine, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
 
-        // GroupBox 3: Live Preview Frame (Right Column)
-        RECT rcGb3 = { 295, 54, 600, 375 };
+        // GroupBox 3: Live Preview Frame (Right Column: Y 56 to 380 — exact height match!)
+        RECT rcGb3 = { 295, 56, 600, 380 };
         DrawTs3GroupBox(hdc, rcGb3, L"Channel & UI Preview", hSubFont);
 
         // 1. Channel Tree Simulation Card
