@@ -585,42 +585,62 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         char ts3ExePath[MAX_PATH];
         GetModuleFileNameA(NULL, ts3ExePath, MAX_PATH);
 
-        DWORD currentPid = GetCurrentProcessId();
-
-        char batPath[MAX_PATH];
-        snprintf(batPath, sizeof(batPath), "%sts3_blackspeak_updater.bat", tempDir);
-
-        FILE* fpBat = NULL;
-        fopen_s(&fpBat, batPath, "w");
-        if (fpBat) {
-            fprintf(fpBat, "@echo off\n");
-            // Wait until TeamSpeak 3 process has completely exited and cleanly disconnected from servers
-            fprintf(fpBat, ":wait_ts3\n");
-            fprintf(fpBat, "tasklist /FI \"PID eq %lu\" 2>nul | find \"%lu\" >nul\n", currentPid, currentPid);
-            fprintf(fpBat, "if not errorlevel 1 (\n");
-            fprintf(fpBat, "    timeout /t 1 /nobreak >nul\n");
-            fprintf(fpBat, "    goto wait_ts3\n");
-            fprintf(fpBat, ")\n");
-            // Brief pause to ensure all files are fully unlocked
-            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
-            // Open TeamSpeak 3 Package Installer and WAIT until user finishes installation
-            fprintf(fpBat, "start /wait \"\" \"%s\"\n", destFile);
-            // After addon installer closes, automatically relaunch TeamSpeak 3!
-            fprintf(fpBat, "start \"\" \"%s\"\n", ts3ExePath);
-            // Clean up temporary script
-            fprintf(fpBat, "(goto) 2>nul & del \"%%~f0\"\n");
-            fclose(fpBat);
+        // Extract TS3 installation folder directory (for correct CWD on restart)
+        char ts3Dir[MAX_PATH];
+        strcpy_s(ts3Dir, sizeof(ts3Dir), ts3ExePath);
+        char* lastSlash = strrchr(ts3Dir, '\\');
+        if (lastSlash) {
+            *lastSlash = '\0';
         }
 
-        // Launch updater script completely hidden in background (zero console window)
+        // Package installer path
+        char packageInstPath[MAX_PATH];
+        snprintf(packageInstPath, sizeof(packageInstPath), "%s\\package_inst.exe", ts3Dir);
+
+        DWORD currentPid = GetCurrentProcessId();
+
+        char vbsPath[MAX_PATH];
+        snprintf(vbsPath, sizeof(vbsPath), "%sts3_blackspeak_updater.vbs", tempDir);
+
+        FILE* fpVbs = NULL;
+        fopen_s(&fpVbs, vbsPath, "w");
+        if (fpVbs) {
+            fprintf(fpVbs, "Set WshShell = CreateObject(\"WScript.Shell\")\n");
+            fprintf(fpVbs, "Set fso = CreateObject(\"Scripting.FileSystemObject\")\n\n");
+            fprintf(fpVbs, "' 1. Wait until TeamSpeak 3 (PID %lu) closes completely and cleanly disconnects from server\n", currentPid);
+            fprintf(fpVbs, "Do\n");
+            fprintf(fpVbs, "    Set procList = GetObject(\"winmgmts:\").ExecQuery(\"Select ProcessId from Win32_Process Where ProcessId = %lu\")\n", currentPid);
+            fprintf(fpVbs, "    If procList.Count = 0 Then Exit Do\n");
+            fprintf(fpVbs, "    WScript.Sleep 500\n");
+            fprintf(fpVbs, "Loop\n\n");
+            fprintf(fpVbs, "WScript.Sleep 1000\n\n");
+            fprintf(fpVbs, "' 2. Run TeamSpeak Package Installer for the addon and WAIT for user to finish installation\n");
+            fprintf(fpVbs, "installerPath = \"%s\"\n", packageInstPath);
+            fprintf(fpVbs, "addonPath = \"%s\"\n", destFile);
+            fprintf(fpVbs, "If fso.FileExists(installerPath) Then\n");
+            fprintf(fpVbs, "    WshShell.Run \"\"\"\" & installerPath & \"\"\" \"\"\" & addonPath & \"\"\"\", 1, True\n");
+            fprintf(fpVbs, "Else\n");
+            fprintf(fpVbs, "    WshShell.Run \"\"\"\" & addonPath & \"\"\"\", 1, True\n");
+            fprintf(fpVbs, "End If\n\n");
+            fprintf(fpVbs, "' 3. Set Working Directory and relaunch TeamSpeak 3 cleanly\n");
+            fprintf(fpVbs, "WshShell.CurrentDirectory = \"%s\"\n", ts3Dir);
+            fprintf(fpVbs, "WshShell.Run \"\"\"%s\"\"\", 1, False\n\n", ts3ExePath);
+            fprintf(fpVbs, "' 4. Clean up updater script\n");
+            fprintf(fpVbs, "On Error Resume Next\n");
+            fprintf(fpVbs, "fso.DeleteFile WScript.ScriptFullName, True\n");
+            fclose(fpVbs);
+        }
+
+        // Launch wscript.exe — wscript is a native Windows GUI app (0 console window)
+        char wscriptCmd[MAX_PATH + 64];
+        snprintf(wscriptCmd, sizeof(wscriptCmd), "wscript.exe \"%s\"", vbsPath);
+
         STARTUPINFOA si = { sizeof(si) };
         si.dwFlags = STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION pi = { 0 };
-        char cmdLine[MAX_PATH * 2 + 64];
-        snprintf(cmdLine, sizeof(cmdLine), "cmd.exe /C \"%s\"", batPath);
 
-        if (CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE,
+        if (CreateProcessA(NULL, wscriptCmd, NULL, NULL, FALSE,
             CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL, &si, &pi)) {
             if (pi.hProcess) CloseHandle(pi.hProcess);
             if (pi.hThread)  CloseHandle(pi.hThread);
