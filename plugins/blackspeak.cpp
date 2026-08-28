@@ -475,6 +475,24 @@ static DWORD WINAPI CheckUpdateThreadProc(LPVOID lpParam) {
     return 0;
 }
 
+static void TriggerGracefulTS3Quit() {
+    // 1. Call Qt's official QCoreApplication::quit() to trigger graceful disconnect from all connected servers
+    HMODULE hCore = GetModuleHandleA("Qt5Core.dll");
+    if (hCore) {
+        typedef void (*fn_quit)();
+        fn_quit pQuit = (fn_quit)GetProcAddress(hCore, "?quit@QCoreApplication@@SAXXZ");
+        if (pQuit) {
+            pQuit();
+        }
+    }
+
+    // 2. Also send standard WM_CLOSE message to top-level TeamSpeak 3 Qt window
+    HWND topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
+    if (topTS3 && IsWindow(topTS3)) {
+        PostMessage(topTS3, WM_CLOSE, 0, 0);
+    }
+}
+
 static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
     HWND hNotifyWnd = (HWND)lpParam;
     HWND hParent = hNotifyWnd ? hNotifyWnd : GetForegroundWindow();
@@ -564,14 +582,52 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         MB_YESNO | MB_ICONQUESTION | MB_TOPMOST);
 
     if (userChoice == IDYES) {
-        // Launch TeamSpeak 3 Package Installer GUI directly (no cmd.exe, no batch file)
-        ShellExecuteA(NULL, "open", destFile, NULL, NULL, SW_SHOWNORMAL);
+        char ts3ExePath[MAX_PATH];
+        GetModuleFileNameA(NULL, ts3ExePath, MAX_PATH);
 
-        // Send graceful close to TeamSpeak 3 main window so installer can apply updates
-        HWND topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
-        if (topTS3 && IsWindow(topTS3)) {
-            PostMessage(topTS3, WM_CLOSE, 0, 0);
+        DWORD currentPid = GetCurrentProcessId();
+
+        char batPath[MAX_PATH];
+        snprintf(batPath, sizeof(batPath), "%sts3_blackspeak_updater.bat", tempDir);
+
+        FILE* fpBat = NULL;
+        fopen_s(&fpBat, batPath, "w");
+        if (fpBat) {
+            fprintf(fpBat, "@echo off\n");
+            // Wait until TeamSpeak 3 process has completely exited and cleanly disconnected from servers
+            fprintf(fpBat, ":wait_ts3\n");
+            fprintf(fpBat, "tasklist /FI \"PID eq %lu\" 2>nul | find \"%lu\" >nul\n", currentPid, currentPid);
+            fprintf(fpBat, "if not errorlevel 1 (\n");
+            fprintf(fpBat, "    timeout /t 1 /nobreak >nul\n");
+            fprintf(fpBat, "    goto wait_ts3\n");
+            fprintf(fpBat, ")\n");
+            // Brief pause to ensure all files are fully unlocked
+            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
+            // Open TeamSpeak 3 Package Installer and WAIT until user finishes installation
+            fprintf(fpBat, "start /wait \"\" \"%s\"\n", destFile);
+            // After addon installer closes, automatically relaunch TeamSpeak 3!
+            fprintf(fpBat, "start \"\" \"%s\"\n", ts3ExePath);
+            // Clean up temporary script
+            fprintf(fpBat, "(goto) 2>nul & del \"%%~f0\"\n");
+            fclose(fpBat);
         }
+
+        // Launch updater script completely hidden in background (zero console window)
+        STARTUPINFOA si = { sizeof(si) };
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        PROCESS_INFORMATION pi = { 0 };
+        char cmdLine[MAX_PATH * 2 + 64];
+        snprintf(cmdLine, sizeof(cmdLine), "cmd.exe /C \"%s\"", batPath);
+
+        if (CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE,
+            CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL, &si, &pi)) {
+            if (pi.hProcess) CloseHandle(pi.hProcess);
+            if (pi.hThread)  CloseHandle(pi.hThread);
+        }
+
+        // Standard TeamSpeak 3 graceful exit (disconnects from servers before terminating)
+        TriggerGracefulTS3Quit();
     }
 
     return 0;
