@@ -52,7 +52,7 @@ struct PluginMenuItem {
 
 struct AccentPalette {
     const wchar_t* name;        // e.g. L"Sapphire Blue"
-    const wchar_t* tag;         // e.g. L"Classic Cyber"
+    const wchar_t* tag;         // e.g. L"Classic Cyber Blue"
     const char* primary;        // e.g. "#2563EB"
     const char* accent;         // e.g. "#3B82F6"
     const char* glow;           // e.g. "#60A5FA"
@@ -86,13 +86,13 @@ static volatile BOOL g_titlebarRunning = FALSE;
 
 #define IDC_ENABLE_CHECKBOX    1001
 #define IDC_ACCENT_COMBO       1002
-#define IDC_APPLY_BTN          1003
+#define IDC_OK_BTN             1003
 #define IDC_CANCEL_BTN         1004
+#define IDC_APPLY_BTN          1005
 
 // Custom Subclass for ComboBox to render 100% Dark Theme (no white arrow)
 static WNDPROC s_origComboProc = NULL;
 static HFONT s_hComboFont = NULL;
-static HFONT s_hComboHexFont = NULL;
 
 static LRESULT CALLBACK DarkComboSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_PAINT) {
@@ -101,12 +101,12 @@ static LRESULT CALLBACK DarkComboSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
         RECT rc;
         GetClientRect(hwnd, &rc);
 
-        // Dark Background
+        // Dark Background (matching TeamSpeak 3 ComboBox #0F1117)
         HBRUSH hBg = CreateSolidBrush(RGB(15, 17, 23));
         FillRect(hdc, &rc, hBg);
         DeleteObject(hBg);
 
-        // Dark Border
+        // Dark Border (#1E222D)
         HPEN hBorder = CreatePen(PS_SOLID, 1, RGB(30, 34, 45));
         HPEN oldPen = (HPEN)SelectObject(hdc, hBorder);
         HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
@@ -120,16 +120,16 @@ static LRESULT CALLBACK DarkComboSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
             const AccentPalette& pal = g_palettes[curSel];
 
             // Swatch Pill
-            int pillLeft = rc.left + 12;
-            int pillTop = rc.top + 6;
-            int pillRight = pillLeft + 22;
-            int pillBottom = rc.bottom - 6;
+            int pillLeft = rc.left + 8;
+            int pillTop = rc.top + 5;
+            int pillRight = pillLeft + 16;
+            int pillBottom = rc.bottom - 5;
 
             HBRUSH hSw = CreateSolidBrush(pal.colorRef);
-            HPEN hSwBorder = CreatePen(PS_SOLID, 1, RGB(50, 60, 80));
+            HPEN hSwBorder = CreatePen(PS_SOLID, 1, RGB(45, 55, 75));
             HPEN pOld = (HPEN)SelectObject(hdc, hSwBorder);
             HBRUSH bOld = (HBRUSH)SelectObject(hdc, hSw);
-            RoundRect(hdc, pillLeft, pillTop, pillRight, pillBottom, 4, 4);
+            RoundRect(hdc, pillLeft, pillTop, pillRight, pillBottom, 3, 3);
             SelectObject(hdc, pOld);
             SelectObject(hdc, bOld);
             DeleteObject(hSwBorder);
@@ -139,22 +139,14 @@ static LRESULT CALLBACK DarkComboSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, RGB(255, 255, 255));
             if (s_hComboFont) SelectObject(hdc, s_hComboFont);
-            RECT rName = { pillRight + 12, rc.top, rc.right - 90, rc.bottom };
+            RECT rName = { pillRight + 8, rc.top, rc.right - 30, rc.bottom };
             DrawTextW(hdc, pal.name, -1, &rName, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-
-            // Hex Code
-            SetTextColor(hdc, RGB(148, 163, 184));
-            if (s_hComboHexFont) SelectObject(hdc, s_hComboHexFont);
-            RECT rHex = { rc.right - 90, rc.top, rc.right - 30, rc.bottom };
-            wchar_t hexBuf[32];
-            swprintf_s(hexBuf, L"%S", pal.accent);
-            DrawTextW(hdc, hexBuf, -1, &rHex, DT_RIGHT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
         }
 
         // Dropdown Arrow (Chevron ▼) on dark background
-        SetTextColor(hdc, RGB(148, 163, 184));
+        SetTextColor(hdc, RGB(160, 170, 185));
         if (s_hComboFont) SelectObject(hdc, s_hComboFont);
-        RECT rArrow = { rc.right - 28, rc.top, rc.right - 8, rc.bottom };
+        RECT rArrow = { rc.right - 22, rc.top, rc.right - 6, rc.bottom };
         DrawTextW(hdc, L"▼", -1, &rArrow, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
         EndPaint(hwnd, &ps);
@@ -321,7 +313,7 @@ static bool JsonExtractString(const char* json, const char* key, char* outVal, s
     const char* p = colon + 1;
     while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
     if (*p != '\"') return false;
-    p++; // past opening quote
+    p++;
 
     size_t i = 0;
     while (*p && *p != '\"' && i < maxLen - 1) {
@@ -642,7 +634,6 @@ static void LoadConfig() {
     char cfgPath[MAX_PATH];
     GetConfigFilePath(cfgPath, sizeof(cfgPath));
 
-    // Fallback to legacy config if new config doesn't exist yet
     if (GetFileAttributesA(cfgPath) == INVALID_FILE_ATTRIBUTES) {
         char oldCfg[MAX_PATH];
         char appData[MAX_PATH];
@@ -744,13 +735,11 @@ static bool ApplyLiveQtStyleSheet(const char* qssContent) {
         void* qApp = pInstance();
         if (!qApp) return false;
 
-        // Step 1: Clear current stylesheet to force Qt widget cache invalidation
         void* qstrEmpty[2] = {0};
         pFromUtf8(qstrEmpty, "", 0);
         pSetStyleSheet(qApp, qstrEmpty);
         if (pDtorQString) pDtorQString(qstrEmpty);
 
-        // Step 2: Apply the updated BlackSpeak stylesheet
         if (qssContent && strlen(qssContent) > 0) {
             void* qstrNew[2] = {0};
             pFromUtf8(qstrNew, qssContent, (int)strlen(qssContent));
@@ -779,7 +768,6 @@ static void ApplyThemeAndPalette() {
 
     UpdateSettingsDb(g_isThemeEnabled);
 
-    // Apply live to running TeamSpeak instance
     if (g_isThemeEnabled) {
         ApplyLiveQtStyleSheet(generatedQss);
     } else {
@@ -789,14 +777,45 @@ static void ApplyThemeAndPalette() {
     free(generatedQss);
 }
 
+// Helper to draw TeamSpeak 3 style GroupBoxes
+static void DrawTs3GroupBox(HDC hdc, RECT rc, const wchar_t* title, HFONT hFont) {
+    SelectObject(hdc, hFont);
+    SIZE sz = { 0, 0 };
+    GetTextExtentPoint32W(hdc, title, (int)wcslen(title), &sz);
+
+    int titleLeft = rc.left + 10;
+    int titleRight = titleLeft + sz.cx + 6;
+    int topY = rc.top + sz.cy / 2;
+
+    HPEN hBorderPen = CreatePen(PS_SOLID, 1, RGB(30, 34, 45));
+    HPEN oldPen = (HPEN)SelectObject(hdc, hBorderPen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+
+    RoundRect(hdc, rc.left, topY, rc.right, rc.bottom, 6, 6);
+
+    // Erase border behind title
+    HBRUSH hBg = CreateSolidBrush(RGB(6, 7, 9));
+    RECT rClear = { titleLeft - 2, topY - 1, titleRight + 2, topY + 2 };
+    FillRect(hdc, &rClear, hBg);
+    DeleteObject(hBg);
+
+    // Draw Title
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, RGB(160, 160, 160));
+    RECT rTitle = { titleLeft + 2, rc.top, titleRight, rc.top + sz.cy };
+    DrawTextW(hdc, title, -1, &rTitle, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(hBorderPen);
+}
+
 // ==========================================
-// Settings Dialog Window Procedure
+// Settings Dialog Window Procedure (TeamSpeak 3 Options Style)
 // ==========================================
 
 static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     static HBRUSH hBgBrush = NULL;
-    static HBRUSH hCardBrush = NULL;
-    static HBRUSH hBannerBrush = NULL;
     static HFONT hHeaderFont = NULL;
     static HFONT hSubFont = NULL;
     static HFONT hSectionFont = NULL;
@@ -806,35 +825,33 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     static HFONT hBadgeFont = NULL;
     static HWND hCombo = NULL;
     static HWND hChk = NULL;
-    static HWND hApply = NULL;
+    static HWND hOk = NULL;
     static HWND hCancel = NULL;
+    static HWND hApply = NULL;
 
     switch (msg) {
     case WM_CREATE: {
-        // Deep obsidian theme colors (TeamSpeak Dark style)
+        // Native TeamSpeak 3 dark background #060709
         hBgBrush = CreateSolidBrush(RGB(6, 7, 9));
-        hCardBrush = CreateSolidBrush(RGB(15, 17, 23));
-        hBannerBrush = CreateSolidBrush(RGB(10, 12, 16));
 
-        // Segoe UI font hierarchy (matching native TeamSpeak 3 typography)
-        hHeaderFont = CreateFontW(19, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        // Segoe UI font hierarchy
+        hHeaderFont = CreateFontW(17, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hSubFont = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hSectionFont = CreateFontW(14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hSectionFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hNormalFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        hBtnFont = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        hBtnFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
         hHexFont = CreateFontW(11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Consolas");
         hBadgeFont = CreateFontW(11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 
         s_hComboFont = hNormalFont;
-        s_hComboHexFont = hHexFont;
 
         ApplyDarkTitleBar(hwnd);
 
-        // Custom Owner-Drawn Checkbox (Matches TeamSpeak 3 Style - Solid Accent Rounded Box)
-        hChk = CreateWindowW(L"BUTTON", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 30, 68, 465, 24, hwnd, (HMENU)IDC_ENABLE_CHECKBOX, g_hInst, NULL);
+        // Custom TS3 Styled Checkbox (Solid Accent Rounded Box)
+        hChk = CreateWindowW(L"BUTTON", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 32, 75, 236, 22, hwnd, (HMENU)IDC_ENABLE_CHECKBOX, g_hInst, NULL);
 
         // Accent Palette Dropdown with Custom Dark Subclass
-        hCombo = CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL, 30, 138, 465, 300, hwnd, (HMENU)IDC_ACCENT_COMBO, g_hInst, NULL);
+        hCombo = CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL, 32, 172, 236, 300, hwnd, (HMENU)IDC_ACCENT_COMBO, g_hInst, NULL);
         SendMessage(hCombo, WM_SETFONT, (WPARAM)hNormalFont, TRUE);
 
         for (size_t i = 0; i < PALETTE_COUNT; ++i) {
@@ -842,14 +859,16 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         }
         SendMessage(hCombo, CB_SETCURSEL, g_selectedPaletteIndex, 0);
 
-        // Subclass ComboBox to remove the white Windows classic dropdown arrow
         s_origComboProc = (WNDPROC)SetWindowLongPtrW(hCombo, GWLP_WNDPROC, (LONG_PTR)DarkComboSubclassProc);
 
-        // TeamSpeak 3 styled Bottom Action Buttons
-        hCancel = CreateWindowW(L"BUTTON", L"Close", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 300, 310, 88, 30, hwnd, (HMENU)IDC_CANCEL_BTN, g_hInst, NULL);
+        // TeamSpeak 3 standard Bottom Buttons (OK, Cancel, Apply)
+        hOk = CreateWindowW(L"BUTTON", L"OK", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 350, 396, 76, 26, hwnd, (HMENU)IDC_OK_BTN, g_hInst, NULL);
+        SendMessage(hOk, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
+
+        hCancel = CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 434, 396, 76, 26, hwnd, (HMENU)IDC_CANCEL_BTN, g_hInst, NULL);
         SendMessage(hCancel, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
-        hApply = CreateWindowW(L"BUTTON", L"Apply", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 400, 310, 95, 30, hwnd, (HMENU)IDC_APPLY_BTN, g_hInst, NULL);
+        hApply = CreateWindowW(L"BUTTON", L"Apply", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 518, 396, 76, 26, hwnd, (HMENU)IDC_APPLY_BTN, g_hInst, NULL);
         SendMessage(hApply, WM_SETFONT, (WPARAM)hBtnFont, TRUE);
 
         g_statusText[0] = L'\0';
@@ -859,7 +878,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     case WM_MEASUREITEM: {
         LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
         if (mis->CtlID == IDC_ACCENT_COMBO) {
-            mis->itemHeight = 32;
+            mis->itemHeight = 28;
             return TRUE;
         }
         break;
@@ -869,14 +888,13 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
 
         if (dis->CtlID == IDC_ENABLE_CHECKBOX) {
-            // Background matching dialog
             HBRUSH hBg = CreateSolidBrush(RGB(6, 7, 9));
             FillRect(dis->hDC, &dis->rcItem, hBg);
             DeleteObject(hBg);
 
             BOOL isChecked = g_isThemeEnabled;
-            int boxSize = 16;
-            int boxLeft = dis->rcItem.left + 2;
+            int boxSize = 14;
+            int boxLeft = dis->rcItem.left + 1;
             int boxTop = dis->rcItem.top + (dis->rcItem.bottom - dis->rcItem.top - boxSize) / 2;
             int boxRight = boxLeft + boxSize;
             int boxBottom = boxTop + boxSize;
@@ -884,41 +902,40 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             COLORREF accentColor = g_palettes[g_selectedPaletteIndex].colorRef;
 
             if (isChecked) {
-                // TeamSpeak 3 Checked Box: Solid Accent Rounded Box (Image 2 style)
+                // TeamSpeak 3 Style Solid Blue Rounded Square (Image 2 style)
                 HBRUSH hBoxBrush = CreateSolidBrush(accentColor);
                 HPEN hBoxPen = CreatePen(PS_SOLID, 1, accentColor);
                 HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBoxPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hBoxBrush);
-                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 4, 4);
+                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 3, 3);
                 SelectObject(dis->hDC, oldPen);
                 SelectObject(dis->hDC, oldBrush);
                 DeleteObject(hBoxPen);
                 DeleteObject(hBoxBrush);
 
-                // Crisp White Checkmark inside
+                // White Checkmark
                 SetBkMode(dis->hDC, TRANSPARENT);
                 SetTextColor(dis->hDC, RGB(255, 255, 255));
                 SelectObject(dis->hDC, hBadgeFont);
                 RECT rCheck = { boxLeft, boxTop - 1, boxRight, boxBottom };
                 DrawTextW(dis->hDC, L"✓", -1, &rCheck, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             } else {
-                // Unchecked Box: Dark background with crisp border
+                // Unchecked Box
                 HBRUSH hBoxBrush = CreateSolidBrush(RGB(15, 17, 23));
                 HPEN hBoxPen = CreatePen(PS_SOLID, 1, RGB(45, 55, 75));
                 HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBoxPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hBoxBrush);
-                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 4, 4);
+                RoundRect(dis->hDC, boxLeft, boxTop, boxRight, boxBottom, 3, 3);
                 SelectObject(dis->hDC, oldPen);
                 SelectObject(dis->hDC, oldBrush);
                 DeleteObject(hBoxPen);
                 DeleteObject(hBoxBrush);
             }
 
-            // Checkbox Title
             SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(255, 255, 255));
-            SelectObject(dis->hDC, hSectionFont);
-            RECT rText = { boxRight + 10, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom };
+            SetTextColor(dis->hDC, RGB(240, 240, 240));
+            SelectObject(dis->hDC, hNormalFont);
+            RECT rText = { boxRight + 8, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom };
             DrawTextW(dis->hDC, L"Enable BlackSpeak Theme", -1, &rText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             return TRUE;
         }
@@ -935,21 +952,21 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
             if (isSelected) {
                 HBRUSH hBar = CreateSolidBrush(pal.colorRef);
-                RECT rBar = { dis->rcItem.left, dis->rcItem.top + 2, dis->rcItem.left + 4, dis->rcItem.bottom - 2 };
+                RECT rBar = { dis->rcItem.left, dis->rcItem.top + 2, dis->rcItem.left + 3, dis->rcItem.bottom - 2 };
                 FillRect(dis->hDC, &rBar, hBar);
                 DeleteObject(hBar);
             }
 
-            int pillLeft = dis->rcItem.left + 14;
+            int pillLeft = dis->rcItem.left + 10;
             int pillTop = dis->rcItem.top + 6;
-            int pillRight = pillLeft + 22;
+            int pillRight = pillLeft + 16;
             int pillBottom = dis->rcItem.bottom - 6;
 
             HBRUSH hSwatch = CreateSolidBrush(pal.colorRef);
             HPEN hSwatchBorder = CreatePen(PS_SOLID, 1, RGB(60, 70, 90));
             HPEN oldPen = (HPEN)SelectObject(dis->hDC, hSwatchBorder);
             HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, hSwatch);
-            RoundRect(dis->hDC, pillLeft, pillTop, pillRight, pillBottom, 4, 4);
+            RoundRect(dis->hDC, pillLeft, pillTop, pillRight, pillBottom, 3, 3);
             SelectObject(dis->hDC, oldPen);
             SelectObject(dis->hDC, oldBrush);
             DeleteObject(hSwatchBorder);
@@ -957,31 +974,31 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
             SetBkMode(dis->hDC, TRANSPARENT);
             SetTextColor(dis->hDC, isSelected ? RGB(255, 255, 255) : RGB(226, 232, 240));
-            SelectObject(dis->hDC, hSectionFont);
-            RECT rText = { pillRight + 12, dis->rcItem.top, dis->rcItem.right - 100, dis->rcItem.bottom };
+            SelectObject(dis->hDC, hNormalFont);
+            RECT rText = { pillRight + 8, dis->rcItem.top, dis->rcItem.right - 80, dis->rcItem.bottom };
             DrawTextW(dis->hDC, pal.name, -1, &rText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
             SetTextColor(dis->hDC, isSelected ? RGB(180, 195, 220) : RGB(148, 163, 184));
             SelectObject(dis->hDC, hHexFont);
-            RECT rHex = { dis->rcItem.right - 100, dis->rcItem.top, dis->rcItem.right - 12, dis->rcItem.bottom };
+            RECT rHex = { dis->rcItem.right - 80, dis->rcItem.top, dis->rcItem.right - 8, dis->rcItem.bottom };
             wchar_t hexBuf[32];
             swprintf_s(hexBuf, L"%S", pal.accent);
             DrawTextW(dis->hDC, hexBuf, -1, &rHex, DT_RIGHT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-
             return TRUE;
         }
-        else if (dis->CtlID == IDC_APPLY_BTN) {
+        else if (dis->CtlID == IDC_OK_BTN || dis->CtlID == IDC_CANCEL_BTN || dis->CtlID == IDC_APPLY_BTN) {
             BOOL isPressed = (dis->itemState & ODS_SELECTED);
-            int curSel = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
-            if (curSel < 0 || curSel >= (int)PALETTE_COUNT) curSel = g_selectedPaletteIndex;
-            COLORREF accentColor = g_palettes[curSel].colorRef;
+            const wchar_t* btnLabel = L"";
+            if (dis->CtlID == IDC_OK_BTN) btnLabel = L"OK";
+            else if (dis->CtlID == IDC_CANCEL_BTN) btnLabel = L"Cancel";
+            else if (dis->CtlID == IDC_APPLY_BTN) btnLabel = L"Apply";
 
-            // TeamSpeak 3 Style Primary Button (Accent glow border)
-            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(10, 14, 22) : RGB(15, 22, 34));
+            // TeamSpeak 3 Style Button: #0F1117 with 1px #1E222D border & 4px radius
+            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(6, 7, 9) : RGB(15, 17, 23));
             FillRect(dis->hDC, &dis->rcItem, hBtnBg);
             DeleteObject(hBtnBg);
 
-            HPEN hBorder = CreatePen(PS_SOLID, 1, accentColor);
+            HPEN hBorder = CreatePen(PS_SOLID, 1, isPressed ? RGB(50, 60, 80) : RGB(30, 34, 45));
             HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBorder);
             HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
             RoundRect(dis->hDC, dis->rcItem.left, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom, 4, 4);
@@ -990,30 +1007,9 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             DeleteObject(hBorder);
 
             SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(255, 255, 255));
+            SetTextColor(dis->hDC, RGB(240, 240, 240));
             SelectObject(dis->hDC, hBtnFont);
-            DrawTextW(dis->hDC, L"Apply", -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-            return TRUE;
-        }
-        else if (dis->CtlID == IDC_CANCEL_BTN) {
-            BOOL isPressed = (dis->itemState & ODS_SELECTED);
-            // TeamSpeak 3 Style Secondary Button (Clean dark body with subtle border)
-            HBRUSH hBtnBg = CreateSolidBrush(isPressed ? RGB(10, 12, 17) : RGB(15, 17, 23));
-            FillRect(dis->hDC, &dis->rcItem, hBtnBg);
-            DeleteObject(hBtnBg);
-
-            HPEN hBorder = CreatePen(PS_SOLID, 1, isPressed ? RGB(60, 70, 90) : RGB(30, 34, 45));
-            HPEN oldPen = (HPEN)SelectObject(dis->hDC, hBorder);
-            HBRUSH oldBrush = (HBRUSH)SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
-            RoundRect(dis->hDC, dis->rcItem.left, dis->rcItem.top, dis->rcItem.right, dis->rcItem.bottom, 4, 4);
-            SelectObject(dis->hDC, oldPen);
-            SelectObject(dis->hDC, oldBrush);
-            DeleteObject(hBorder);
-
-            SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, RGB(226, 232, 240));
-            SelectObject(dis->hDC, hBtnFont);
-            DrawTextW(dis->hDC, L"Close", -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+            DrawTextW(dis->hDC, btnLabel, -1, &dis->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             return TRUE;
         }
         break;
@@ -1023,121 +1019,168 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        // Top Header Banner
-        RECT rHeaderBanner = { 0, 0, 530, 56 };
-        FillRect(hdc, &rHeaderBanner, hBannerBrush);
-
+        // Header Section (matches TeamSpeak 3 Options Headline)
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, RGB(255, 255, 255));
         SelectObject(hdc, hHeaderFont);
-        RECT rTitle = { 24, 8, 500, 30 };
-        DrawTextW(hdc, L"Theme - BlackSpeak", -1, &rTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        RECT rTitle = { 18, 10, 500, 28 };
+        DrawTextW(hdc, L"Design - BlackSpeak Theme", -1, &rTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
         SetTextColor(hdc, RGB(148, 163, 184));
         SelectObject(hdc, hSubFont);
-        RECT rSub = { 24, 32, 500, 50 };
-        DrawTextW(hdc, L"Coretify Studio  |  Dark Theme, Dark TitleBar & Customizer", -1, &rSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        RECT rSub = { 18, 29, 500, 46 };
+        DrawTextW(hdc, L"Configure the BlackSpeak Dark Theme and Accent Palette for TeamSpeak", -1, &rSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        HPEN hLinePen = CreatePen(PS_SOLID, 1, RGB(30, 34, 45));
-        HPEN oldPen = (HPEN)SelectObject(hdc, hLinePen);
-        MoveToEx(hdc, 0, 56, NULL);
-        LineTo(hdc, 530, 56);
+        // GroupBox 1: Style & Integration (Left Top)
+        RECT rcGb1 = { 18, 54, 280, 130 };
+        DrawTs3GroupBox(hdc, rcGb1, L"Theme Activation", hSubFont);
 
-        // Subtext for Checkbox
-        SetTextColor(hdc, RGB(148, 163, 184));
+        SetTextColor(hdc, RGB(130, 140, 155));
         SelectObject(hdc, hSubFont);
-        RECT rChkSub = { 58, 92, 490, 110 };
-        DrawTextW(hdc, L"Sets BlackSpeak as your default active TeamSpeak style.", -1, &rChkSub, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        RECT rGb1Desc = { 32, 100, 270, 122 };
+        DrawTextW(hdc, L"Sets BlackSpeak as your default active style.", -1, &rGb1Desc, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-        // Section 2: Accent Palette Label
-        SetTextColor(hdc, RGB(226, 232, 240));
-        SelectObject(hdc, hSectionFont);
-        RECT rSec2 = { 30, 116, 490, 134 };
-        DrawTextW(hdc, L"Select Accent Palette:", -1, &rSec2, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        // GroupBox 2: Accent Palette Selection (Left Bottom)
+        RECT rcGb2 = { 18, 142, 280, 375 };
+        DrawTs3GroupBox(hdc, rcGb2, L"Accent Palette", hSubFont);
 
-        // Palette Live Preview Card
         int curSel = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
-        if (curSel >= 0 && curSel < (int)PALETTE_COUNT) {
-            const AccentPalette& pal = g_palettes[curSel];
+        if (curSel < 0 || curSel >= (int)PALETTE_COUNT) curSel = g_selectedPaletteIndex;
+        const AccentPalette& pal = g_palettes[curSel];
 
-            RECT rCard = { 30, 178, 495, 288 };
-            FillRect(hdc, &rCard, hCardBrush);
+        // Tokens Info inside GroupBox 2
+        SetTextColor(hdc, RGB(148, 163, 184));
+        SelectObject(hdc, hSubFont);
+        RECT rTokHead = { 32, 212, 270, 230 };
+        DrawTextW(hdc, L"Palette Color Codes:", -1, &rTokHead, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-            HPEN hCardPen = CreatePen(PS_SOLID, 1, RGB(30, 34, 45));
-            HPEN pOld = (HPEN)SelectObject(hdc, hCardPen);
-            HBRUSH bOld = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 30, 178, 495, 288, 6, 6);
-            SelectObject(hdc, pOld);
-            SelectObject(hdc, bOld);
-            DeleteObject(hCardPen);
+        wchar_t bufTok1[64], bufTok2[64], bufTok3[64];
+        swprintf_s(bufTok1, L"• Primary : %S", pal.primary);
+        swprintf_s(bufTok2, L"• Hover   : %S", pal.accent);
+        swprintf_s(bufTok3, L"• Glow    : %S", pal.glow);
 
-            // Left Color Pill Bar
-            HBRUSH hSwatch = CreateSolidBrush(pal.colorRef);
-            RECT rPill = { 44, 192, 62, 230 };
-            FillRect(hdc, &rPill, hSwatch);
-            DeleteObject(hSwatch);
+        SetTextColor(hdc, RGB(220, 225, 235));
+        SelectObject(hdc, hHexFont);
+        RECT rT1 = { 34, 234, 270, 250 };
+        RECT rT2 = { 34, 252, 270, 268 };
+        RECT rT3 = { 34, 270, 270, 286 };
+        DrawTextW(hdc, bufTok1, -1, &rT1, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        DrawTextW(hdc, bufTok2, -1, &rT2, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        DrawTextW(hdc, bufTok3, -1, &rT3, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
-            // Palette Title & Tag
-            SetTextColor(hdc, RGB(255, 255, 255));
-            SelectObject(hdc, hSectionFont);
-            RECT rSwatchTitle = { 72, 190, 460, 210 };
-            DrawTextW(hdc, pal.name, -1, &rSwatchTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        SetTextColor(hdc, RGB(148, 163, 184));
+        SelectObject(hdc, hSubFont);
+        RECT rTagLine = { 32, 305, 270, 360 };
+        wchar_t bufTag[128];
+        swprintf_s(bufTag, L"Variant: %s\nStyle: Modern Obsidian", pal.tag);
+        DrawTextW(hdc, bufTag, -1, &rTagLine, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
 
-            SetTextColor(hdc, RGB(148, 163, 184));
-            SelectObject(hdc, hSubFont);
-            RECT rTag = { 72, 210, 460, 228 };
-            DrawTextW(hdc, pal.tag, -1, &rTag, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        // GroupBox 3: Live Preview Frame (Right Column)
+        RECT rcGb3 = { 295, 54, 600, 375 };
+        DrawTs3GroupBox(hdc, rcGb3, L"Channel & UI Preview", hSubFont);
 
-            // Hex values line (High-contrast and readable)
-            SetTextColor(hdc, RGB(160, 175, 205));
-            SelectObject(hdc, hHexFont);
-            RECT rHex = { 44, 236, 480, 254 };
-            wchar_t hexBuf[128];
-            swprintf_s(hexBuf, L"Primary: %S   |   Hover: %S   |   Glow: %S", pal.primary, pal.accent, pal.glow);
-            DrawTextW(hdc, hexBuf, -1, &rHex, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        // 1. Channel Tree Simulation Card
+        RECT rTreeBox = { 312, 80, 584, 240 };
+        HBRUSH hTreeBg = CreateSolidBrush(RGB(10, 12, 16));
+        FillRect(hdc, &rTreeBox, hTreeBg);
+        DeleteObject(hTreeBg);
 
-            // Mini Live Channel Pill
-            HBRUSH hSimChan = CreateSolidBrush(pal.colorRef);
-            RECT rSimChan = { 44, 256, 200, 278 };
-            FillRect(hdc, &rSimChan, hSimChan);
-            DeleteObject(hSimChan);
+        HPEN hTreeBorder = CreatePen(PS_SOLID, 1, RGB(20, 23, 32));
+        HPEN oldP1 = (HPEN)SelectObject(hdc, hTreeBorder);
+        HBRUSH oldB1 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        RoundRect(hdc, 312, 80, 584, 240, 4, 4);
+        SelectObject(hdc, oldP1);
+        SelectObject(hdc, oldB1);
+        DeleteObject(hTreeBorder);
 
-            SetTextColor(hdc, RGB(255, 255, 255));
-            SelectObject(hdc, hSubFont);
-            RECT rSimChanText = { 52, 256, 194, 278 };
-            DrawTextW(hdc, L"►  Active Channel", -1, &rSimChanText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        // Channel items
+        SetTextColor(hdc, RGB(200, 205, 215));
+        SelectObject(hdc, hNormalFont);
+        RECT rChan1 = { 324, 90, 570, 110 };
+        DrawTextW(hdc, L"📁  [cspacer] ~ BlackSpeak Server ~", -1, &rChan1, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-            // Mini Action Button Preview (TeamSpeak 3 style)
-            HBRUSH hSimBtnBg = CreateSolidBrush(RGB(15, 17, 23));
-            RECT rSimBtn = { 210, 256, 310, 278 };
-            FillRect(hdc, &rSimBtn, hSimBtnBg);
-            DeleteObject(hSimBtnBg);
+        RECT rChan2 = { 334, 114, 570, 134 };
+        DrawTextW(hdc, L"📁  Lobby / General Chat", -1, &rChan2, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-            HPEN hSimBtnBorder = CreatePen(PS_SOLID, 1, pal.colorRef);
-            HPEN pOld2 = (HPEN)SelectObject(hdc, hSimBtnBorder);
-            HBRUSH bOld2 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            RoundRect(hdc, 210, 256, 310, 278, 4, 4);
-            SelectObject(hdc, pOld2);
-            SelectObject(hdc, bOld2);
-            DeleteObject(hSimBtnBorder);
+        // Active Channel Pill (Glowing Accent)
+        HBRUSH hActChan = CreateSolidBrush(pal.colorRef);
+        RECT rActChanPill = { 332, 140, 568, 166 };
+        FillRect(hdc, &rActChanPill, hActChan);
+        DeleteObject(hActChan);
 
-            SetTextColor(hdc, RGB(255, 255, 255));
-            SelectObject(hdc, hSubFont);
-            RECT rSimBtnText = { 210, 256, 310, 278 };
-            DrawTextW(hdc, L"Button Preview", -1, &rSimBtnText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-        }
+        SetTextColor(hdc, RGB(255, 255, 255));
+        SelectObject(hdc, hNormalFont);
+        RECT rActChanText = { 342, 140, 560, 166 };
+        DrawTextW(hdc, L"🔊  TeamSpeak Active Channel (Talking)", -1, &rActChanText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-        // Bottom Separator Line
-        MoveToEx(hdc, 0, 298, NULL);
-        LineTo(hdc, 530, 298);
-        SelectObject(hdc, oldPen);
-        DeleteObject(hLinePen);
+        SetTextColor(hdc, RGB(160, 170, 185));
+        RECT rClient1 = { 354, 172, 570, 192 };
+        DrawTextW(hdc, L"• User Client (Online)", -1, &rClient1, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+        RECT rChan3 = { 334, 198, 570, 218 };
+        DrawTextW(hdc, L"📁  Gaming Lounge", -1, &rChan3, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+        // 2. Button Simulation Box inside Preview
+        SetTextColor(hdc, RGB(148, 163, 184));
+        SelectObject(hdc, hSubFont);
+        RECT rBtnPrevTitle = { 312, 255, 584, 275 };
+        DrawTextW(hdc, L"Interface Buttons Preview:", -1, &rBtnPrevTitle, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+
+        // Simulated Normal Button
+        HBRUSH hSimB1 = CreateSolidBrush(RGB(15, 17, 23));
+        RECT rSimB1 = { 312, 280, 430, 310 };
+        FillRect(hdc, &rSimB1, hSimB1);
+        DeleteObject(hSimB1);
+
+        HPEN hSimP1 = CreatePen(PS_SOLID, 1, RGB(30, 34, 45));
+        HPEN pOldS1 = (HPEN)SelectObject(hdc, hSimP1);
+        HBRUSH bOldS1 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        RoundRect(hdc, 312, 280, 430, 310, 4, 4);
+        SelectObject(hdc, pOldS1);
+        SelectObject(hdc, bOldS1);
+        DeleteObject(hSimP1);
+
+        SetTextColor(hdc, RGB(220, 220, 220));
+        SelectObject(hdc, hNormalFont);
+        RECT rSimT1 = { 312, 280, 430, 310 };
+        DrawTextW(hdc, L"Normal Button", -1, &rSimT1, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+        // Simulated Accent Button
+        HBRUSH hSimB2 = CreateSolidBrush(RGB(15, 17, 23));
+        RECT rSimB2 = { 450, 280, 584, 310 };
+        FillRect(hdc, &rSimB2, hSimB2);
+        DeleteObject(hSimB2);
+
+        HPEN hSimP2 = CreatePen(PS_SOLID, 1, pal.colorRef);
+        HPEN pOldS2 = (HPEN)SelectObject(hdc, hSimP2);
+        HBRUSH bOldS2 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        RoundRect(hdc, 450, 280, 584, 310, 4, 4);
+        SelectObject(hdc, pOldS2);
+        SelectObject(hdc, bOldS2);
+        DeleteObject(hSimP2);
+
+        SetTextColor(hdc, RGB(255, 255, 255));
+        RECT rSimT2 = { 450, 280, 584, 310 };
+        DrawTextW(hdc, L"Accent Hover", -1, &rSimT2, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+        // Active Color Pill Indicator Bar
+        HBRUSH hPalBar = CreateSolidBrush(pal.colorRef);
+        RECT rPalBar = { 312, 330, 584, 350 };
+        FillRect(hdc, &rPalBar, hPalBar);
+        DeleteObject(hPalBar);
+
+        SetTextColor(hdc, RGB(255, 255, 255));
+        SelectObject(hdc, hBadgeFont);
+        RECT rPalBarText = { 312, 330, 584, 350 };
+        wchar_t bufBar[64];
+        swprintf_s(bufBar, L"Active Palette: %s", pal.name);
+        DrawTextW(hdc, bufBar, -1, &rPalBarText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
         // Status text on bottom left
         if (g_statusText[0] != L'\0') {
             SetTextColor(hdc, RGB(16, 185, 129));
             SelectObject(hdc, hSectionFont);
-            RECT rStatus = { 30, 314, 280, 336 };
+            RECT rStatus = { 18, 398, 330, 422 };
             DrawTextW(hdc, g_statusText, -1, &rStatus, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
         }
 
@@ -1163,7 +1206,7 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         HDC hdc = (HDC)wParam;
         SetTextColor(hdc, RGB(240, 245, 255));
         SetBkColor(hdc, RGB(15, 17, 23));
-        return (LRESULT)hCardBrush;
+        return (LRESULT)hBgBrush;
     }
 
     case WM_ERASEBKGND: {
@@ -1186,14 +1229,18 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             g_statusText[0] = L'\0';
             InvalidateRect(hwnd, NULL, TRUE);
             InvalidateRect(hChk, NULL, TRUE);
-            InvalidateRect(hApply, NULL, TRUE);
+        }
+        else if (wmId == IDC_OK_BTN) {
+            g_selectedPaletteIndex = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
+            SaveConfig();
+            ApplyThemeAndPalette();
+            DestroyWindow(hwnd);
         }
         else if (wmId == IDC_CANCEL_BTN) {
             DestroyWindow(hwnd);
         }
         else if (wmId == IDC_APPLY_BTN) {
             g_selectedPaletteIndex = (int)SendMessage(hCombo, CB_GETCURSEL, 0, 0);
-
             SaveConfig();
             ApplyThemeAndPalette();
 
@@ -1211,8 +1258,6 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
     case WM_DESTROY: {
         if (hBgBrush) DeleteObject(hBgBrush);
-        if (hCardBrush) DeleteObject(hCardBrush);
-        if (hBannerBrush) DeleteObject(hBannerBrush);
         if (hHeaderFont) DeleteObject(hHeaderFont);
         if (hSubFont) DeleteObject(hSubFont);
         if (hSectionFont) DeleteObject(hSectionFont);
@@ -1221,7 +1266,6 @@ static LRESULT CALLBACK ConfigWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         if (hHexFont) DeleteObject(hHexFont);
         if (hBadgeFont) DeleteObject(hBadgeFont);
         s_hComboFont = NULL;
-        s_hComboHexFont = NULL;
         g_hConfigWnd = NULL;
         break;
     }
@@ -1252,8 +1296,8 @@ static void ShowConfigWindow() {
         s_isClassRegistered = TRUE;
     }
 
-    int width = 530;
-    int height = 390;
+    int width = 635;
+    int height = 475;
     int x = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
     int y = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
 
