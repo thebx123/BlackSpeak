@@ -573,23 +573,55 @@ static DWORD WINAPI DownloadUpdateThreadProc(LPVOID lpParam) {
         fopen_s(&fpBat, batPath, "w");
         if (fpBat) {
             fprintf(fpBat, "@echo off\n");
-            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
-            fprintf(fpBat, "taskkill /IM ts3client_win64.exe /F >nul 2>&1\n");
-            fprintf(fpBat, "timeout /t 1 /nobreak >nul\n");
+            // Wait for TS3 to finish its own graceful shutdown (WM_CLOSE was sent)
+            fprintf(fpBat, "timeout /t 3 /nobreak >nul\n");
+            // Attempt graceful close first (no /F flag)
+            fprintf(fpBat, "taskkill /IM ts3client_win64.exe >nul 2>&1\n");
+            fprintf(fpBat, "timeout /t 2 /nobreak >nul\n");
+            // Poll until ts3client_win64.exe is completely gone from process list
+            fprintf(fpBat, "set _tries=0\n");
+            fprintf(fpBat, ":waitloop\n");
+            fprintf(fpBat, "tasklist /FI \"IMAGENAME eq ts3client_win64.exe\" 2>nul | find /I \"ts3client_win64.exe\" >nul\n");
+            fprintf(fpBat, "if not errorlevel 1 (\n");
+            fprintf(fpBat, "  set /a _tries+=1\n");
+            fprintf(fpBat, "  if %%_tries%% lss 20 (\n");
+            fprintf(fpBat, "    timeout /t 1 /nobreak >nul\n");
+            fprintf(fpBat, "    goto waitloop\n");
+            fprintf(fpBat, "  )\n");
+            // Force kill only if still alive after waiting 20 seconds
+            fprintf(fpBat, "  taskkill /IM ts3client_win64.exe /F >nul 2>&1\n");
+            fprintf(fpBat, "  timeout /t 2 /nobreak >nul\n");
+            fprintf(fpBat, ")\n");
+            // Open the addon so TS3 installer launches a fresh, clean process
+            // TS3 will start normally with full tray icon and taskbar presence
             fprintf(fpBat, "start \"\" \"%s\"\n", destFile);
             fprintf(fpBat, "del \"%%~f0\" >nul 2>&1\n");
             fclose(fpBat);
         }
 
-        ShellExecuteA(NULL, "open", batPath, NULL, NULL, SW_HIDE);
+        // Launch the batch script as a fully detached process so it survives TS3 exit
+        STARTUPINFOA si = {};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        PROCESS_INFORMATION pi = {};
+        char cmdLine[MAX_PATH + 32];
+        snprintf(cmdLine, sizeof(cmdLine), "cmd.exe /C \"%s\"", batPath);
+        CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE,
+            CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL, &si, &pi);
+        if (pi.hProcess) CloseHandle(pi.hProcess);
+        if (pi.hThread)  CloseHandle(pi.hThread);
 
+        // Send graceful WM_CLOSE to all top-level TS3 windows
+        // The batch script will handle waiting and launching the addon after exit
         HWND topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
-        if (topTS3 && IsWindow(topTS3)) {
+        while (topTS3 && IsWindow(topTS3)) {
             PostMessage(topTS3, WM_CLOSE, 0, 0);
+            Sleep(100);
+            topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
         }
-
-        Sleep(400);
-        ExitProcess(0);
+        // Do NOT call ExitProcess — let TS3's Qt event loop shut down cleanly
+        // so the OS can fully free all resources before the batch relaunches it
     }
 
     return 0;
