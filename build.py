@@ -143,6 +143,16 @@ def package_addon(version):
                 zf.write(fp, arcname=rel)
                 print(f"  Added: {rel}")
 
+        # 4. GFX Icon Pack
+        gfx_dir = os.path.join(PROJECT_ROOT, 'gfx')
+        if os.path.exists(gfx_dir):
+            for root, _, files in os.walk(gfx_dir):
+                for file in files:
+                    fp = os.path.join(root, file)
+                    rel = os.path.relpath(fp, PROJECT_ROOT).replace('\\', '/')
+                    zf.write(fp, arcname=rel)
+                    print(f"  Added: {rel}")
+
     print(f"\n[+] Successfully created Unified Addon: {addon_out} ({os.path.getsize(addon_out)} bytes)")
 
 def main():

@@ -30,8 +30,8 @@ TeamSpeak 3 Channel Infoframe Template - Modern Black by Coretify Studio
 
   <table class="InfoFrame_Table" width="100%"><tr><td class="Label">%%?TR_CHANNEL_DESCRIPTION%%:</td></tr><tr><td><br />%%?CHANNEL_DESCRIPTION%%</td></tr></table>
 
-  <div style="margin-top: 25px; padding-top: 8px; border-top: 1px solid #181C26; text-align: center; color: #555A64; font-size: 8pt; font-family: 'Segoe UI', sans-serif;">
-    ✦ This UI was designed by <b style="color: #3B82F6;">Coretify Studio</b> ✦
+  <div style="margin-top: 25px; padding-top: 8px; border-top: 1px solid #181C26; text-align: center; color: #8A8F9D; font-size: 8.5pt; font-family: 'Segoe UI', sans-serif;">
+    ✦ Designed with <span style="color: #EF4444;">❤️</span> by <b style="color: #3B82F6;">Coretify Studio</b> ✦
   </div>
 
 </div>

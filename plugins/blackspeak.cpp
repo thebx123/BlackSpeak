@@ -815,8 +815,180 @@ static bool ApplyLiveQtStyleSheet(const char* qssContent) {
     }
 }
 
+static void GeneratePlayerOnSvg(const AccentPalette& pal, char* outBuf, size_t maxLen) {
+    snprintf(outBuf, maxLen,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\" width=\"128\" height=\"128\">\n"
+        "  <defs>\n"
+        "    <radialGradient id=\"glow_grad\" cx=\"50%%\" cy=\"50%%\" r=\"50%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\" stop-opacity=\"0.95\"/>\n"
+        "      <stop offset=\"65%%\" stop-color=\"%s\" stop-opacity=\"0.40\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\" stop-opacity=\"0\"/>\n"
+        "    </radialGradient>\n"
+        "    <linearGradient id=\"sphere_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"45%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"highlight_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.9\"/>\n"
+        "      <stop offset=\"60%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.15\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.0\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"ring_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\"/>\n"
+        "    </linearGradient>\n"
+        "  </defs>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"62\" fill=\"url(#glow_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"49\" fill=\"#0A0C10\" stroke=\"url(#ring_grad)\" stroke-width=\"4\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"43\" fill=\"url(#sphere_grad)\"/>\n"
+        "  <ellipse cx=\"64\" cy=\"42\" rx=\"28\" ry=\"16\" fill=\"url(#highlight_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"16\" fill=\"#FFFFFF\" opacity=\"0.35\"/>\n"
+        "</svg>\n",
+        pal.glow, pal.accent, pal.primary,
+        pal.glow, pal.accent, pal.primary,
+        pal.accent, pal.primary
+    );
+}
+
+static void GeneratePlayerCommanderOnSvg(const AccentPalette& pal, char* outBuf, size_t maxLen) {
+    snprintf(outBuf, maxLen,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\" width=\"128\" height=\"128\">\n"
+        "  <defs>\n"
+        "    <radialGradient id=\"glow_grad\" cx=\"50%%\" cy=\"50%%\" r=\"50%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\" stop-opacity=\"0.95\"/>\n"
+        "      <stop offset=\"65%%\" stop-color=\"%s\" stop-opacity=\"0.40\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\" stop-opacity=\"0\"/>\n"
+        "    </radialGradient>\n"
+        "    <linearGradient id=\"sphere_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"45%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"highlight_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.9\"/>\n"
+        "      <stop offset=\"60%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.15\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.0\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"commander_ring\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"#F59E0B\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"#D97706\"/>\n"
+        "    </linearGradient>\n"
+        "  </defs>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"62\" fill=\"url(#glow_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"51\" fill=\"#0A0C10\" stroke=\"url(#commander_ring)\" stroke-width=\"5\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"43\" fill=\"url(#sphere_grad)\"/>\n"
+        "  <ellipse cx=\"64\" cy=\"42\" rx=\"28\" ry=\"16\" fill=\"url(#highlight_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"16\" fill=\"#FFFFFF\" opacity=\"0.35\"/>\n"
+        "</svg>\n",
+        pal.glow, pal.accent, pal.primary,
+        pal.glow, pal.accent, pal.primary
+    );
+}
+
+static void GeneratePlayerWhisperSvg(const AccentPalette& pal, char* outBuf, size_t maxLen) {
+    snprintf(outBuf, maxLen,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\" width=\"128\" height=\"128\">\n"
+        "  <defs>\n"
+        "    <radialGradient id=\"glow_grad\" cx=\"50%%\" cy=\"50%%\" r=\"50%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\" stop-opacity=\"0.95\"/>\n"
+        "      <stop offset=\"65%%\" stop-color=\"%s\" stop-opacity=\"0.40\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\" stop-opacity=\"0\"/>\n"
+        "    </radialGradient>\n"
+        "    <linearGradient id=\"sphere_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"45%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"highlight_grad\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.9\"/>\n"
+        "      <stop offset=\"60%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.15\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"#FFFFFF\" stop-opacity=\"0.0\"/>\n"
+        "    </linearGradient>\n"
+        "    <linearGradient id=\"whisper_ring\" x1=\"0%%\" y1=\"0%%\" x2=\"0%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"#EC4899\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"#DB2777\"/>\n"
+        "    </linearGradient>\n"
+        "  </defs>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"62\" fill=\"url(#glow_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"51\" fill=\"#0A0C10\" stroke=\"url(#whisper_ring)\" stroke-width=\"5\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"43\" fill=\"url(#sphere_grad)\"/>\n"
+        "  <ellipse cx=\"64\" cy=\"42\" rx=\"28\" ry=\"16\" fill=\"url(#highlight_grad)\"/>\n"
+        "  <circle cx=\"64\" cy=\"64\" r=\"16\" fill=\"#FFFFFF\" opacity=\"0.35\"/>\n"
+        "</svg>\n",
+        pal.glow, pal.accent, pal.primary,
+        pal.glow, pal.accent, pal.primary
+    );
+}
+
+static void GenerateActivateMicrophoneSvg(const AccentPalette& pal, char* outBuf, size_t maxLen) {
+    snprintf(outBuf, maxLen,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 128 128\" width=\"128\" height=\"128\">\n"
+        "  <defs>\n"
+        "    <linearGradient id=\"mic_accent\" x1=\"0%%\" y1=\"0%%\" x2=\"100%%\" y2=\"100%%\">\n"
+        "      <stop offset=\"0%%\" stop-color=\"%s\"/>\n"
+        "      <stop offset=\"100%%\" stop-color=\"%s\"/>\n"
+        "    </linearGradient>\n"
+        "  </defs>\n"
+        "  <g>\n"
+        "    <path fill=\"url(#mic_accent)\" d=\"M13.644,114.36c6.195,6.199,16.234,6.204,22.439,0.015L13.629,91.922C7.441,98.126,7.447,108.163,13.644,114.36z\"/>\n"
+        "    <path fill=\"url(#mic_accent)\" d=\"M37.502,85.032l6.678-6.678c2.53-2.525,5.769-3.859,9.369-3.859c3.596,0,6.834,1.333,9.375,3.865l4.5,4.501l7.447-7.431c-4.908-1.932-9.506-4.865-13.469-8.829c-3.991-3.992-6.943-8.632-8.875-13.581l-3.303,3.305l-29.52,29.519l16.763,16.764c-1.852-2.328-2.831-5.131-2.831-8.201C33.637,90.809,34.971,87.569,37.502,85.032z\"/>\n"
+        "    <path fill=\"url(#mic_accent)\" d=\"M107.672,48.183c3.171,0,6.06,1.038,8.431,3.008c5.18-10.951,3.252-24.454-5.79-33.497C98.81,6.193,80.094,6.194,68.59,17.696c-11.5,11.501-11.5,30.216,0,41.717c4.103,4.102,9.124,6.732,14.406,7.909l15.299-15.268C100.787,49.558,104.117,48.183,107.672,48.183z\"/>\n"
+        "  </g>\n"
+        "  <g>\n"
+        "    <path fill=\"#94A3B8\" d=\"M117.643,71.393l-46.401,46.328c-0.899,0.899-2.226,1.323-3.974,1.274c-1.599-0.047-2.823-0.476-3.673-1.274L43.578,97.704c-0.899-0.898-1.348-1.997-1.348-3.297c0-1.299,0.449-2.398,1.348-3.299l6.673-6.672c0.899-0.897,1.998-1.349,3.298-1.349c1.299,0,2.398,0.451,3.298,1.349l10.57,10.571l36.957-36.883c0.899-0.9,1.998-1.349,3.297-1.349s2.399,0.449,3.3,1.349l6.671,6.596c0.898,0.951,1.35,2.063,1.35,3.336C118.992,69.333,118.541,70.443,117.643,71.393z\"/>\n"
+        "  </g>\n"
+        "</svg>\n",
+        pal.accent, pal.primary
+    );
+}
+
+static void UpdateDynamicIcons(const AccentPalette& pal) {
+    char svgPlayerOn[4096];
+    char svgCommanderOn[4096];
+    char svgWhisper[4096];
+    char svgMic[4096];
+
+    GeneratePlayerOnSvg(pal, svgPlayerOn, sizeof(svgPlayerOn));
+    GeneratePlayerCommanderOnSvg(pal, svgCommanderOn, sizeof(svgCommanderOn));
+    GeneratePlayerWhisperSvg(pal, svgWhisper, sizeof(svgWhisper));
+    GenerateActivateMicrophoneSvg(pal, svgMic, sizeof(svgMic));
+
+    char appData[MAX_PATH];
+    GetEnvironmentVariableA("APPDATA", appData, MAX_PATH);
+
+    char paths[2][MAX_PATH];
+    snprintf(paths[0], MAX_PATH, "%s\\TS3Client\\gfx\\ModernBlack", appData);
+    strcpy_s(paths[1], MAX_PATH, "g:\\Projects\\TS3-ModernBlack\\gfx\\ModernBlack");
+
+    for (int i = 0; i < 2; ++i) {
+        CreateDirectoryA(paths[i], NULL);
+        char filePath[MAX_PATH];
+
+        snprintf(filePath, sizeof(filePath), "%s\\player_on.svg", paths[i]);
+        SaveStringToFile(filePath, svgPlayerOn);
+
+        snprintf(filePath, sizeof(filePath), "%s\\player_commander_on.svg", paths[i]);
+        SaveStringToFile(filePath, svgCommanderOn);
+
+        snprintf(filePath, sizeof(filePath), "%s\\player_whisper.svg", paths[i]);
+        SaveStringToFile(filePath, svgWhisper);
+
+        snprintf(filePath, sizeof(filePath), "%s\\activate_microphone.svg", paths[i]);
+        SaveStringToFile(filePath, svgMic);
+    }
+}
+
 static void ApplyThemeAndPalette() {
     const AccentPalette& pal = g_palettes[g_selectedPaletteIndex];
+    
+    // Dynamically synchronize talking and toolbar SVG icons with chosen accent color
+    UpdateDynamicIcons(pal);
+
     char* generatedQss = GenerateCustomQss(pal);
     if (!generatedQss) return;
 

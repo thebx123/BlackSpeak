@@ -13,11 +13,11 @@ static const char g_qssTemplate[] = R"QSS_TEMPLATE(
  * QPalette::Text = #FFFFFF;
  * QPalette::Button = #0F1117;
  * QPalette::ButtonText = #FFFFFF;
- * QPalette::Highlight = @ACCENT_PRIMARY@;
+ * QPalette::Highlight = #2563EB;
  * QPalette::HighlightedText = #FFFFFF;
  * QPalette::ToolTipBase = #0A0C10;
  * QPalette::ToolTipText = #FFFFFF;
- * QPalette::Link = @ACCENT_HOVER@;
+ * QPalette::Link = #3B82F6;
  * QPalette::Dark = #060709;
  * QPalette::Mid = #141720;
  * QPalette::Midlight = #1E222D;
@@ -58,9 +58,9 @@ QMenuBar {
         stop:0 transparent,
         stop:0.12 #141720,
         stop:0.30 #1E222D,
-        stop:0.42 @ACCENT_PRIMARY@,
-        stop:0.50 @ACCENT_GLOW@,
-        stop:0.58 @ACCENT_PRIMARY@,
+        stop:0.42 #2563EB,
+        stop:0.50 #60A5FA,
+        stop:0.58 #2563EB,
         stop:0.70 #1E222D,
         stop:0.88 #141720,
         stop:1 transparent);
@@ -91,7 +91,7 @@ QToolBar {
         stop:0 transparent,
         stop:0.15 #141720,
         stop:0.35 #1E222D,
-        stop:0.50 @ACCENT_PRIMARY@,
+        stop:0.50 #2563EB,
         stop:0.65 #1E222D,
         stop:0.85 #141720,
         stop:1 transparent);
@@ -150,13 +150,13 @@ QToolButton::menu-indicator {
 
 QToolButton:hover {
     background-color: #1A1E26;
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     color: #FFFFFF;
 }
 
 QToolButton:pressed, QToolButton:checked {
     background-color: #252B3B;
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     color: #FFFFFF;
 }
 
@@ -190,8 +190,8 @@ QTreeView::item:hover, QListView::item:hover, QListWidget::item:hover {
 
 QTreeView::item:selected, QListView::item:selected, QListWidget::item:selected {
     background-color: #1A1E26;
-    color: @ACCENT_GLOW@;
-    border: 1px solid @ACCENT_HOVER@;
+    color: #60A5FA;
+    border: 1px solid #3B82F6;
 }
 
 QTreeView::branch {
@@ -207,11 +207,11 @@ QTextEdit, QTextBrowser, QPlainTextEdit, QLineEdit {
     padding: 4px 8px;
     outline: none;
     selection-background-color: #1A1E26;
-    selection-color: @ACCENT_GLOW@;
+    selection-color: #60A5FA;
 }
 
 QTextEdit:focus, QTextBrowser:focus, QPlainTextEdit:focus, QLineEdit:focus {
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     background-color: #0F1117;
     outline: none;
 }
@@ -244,7 +244,7 @@ QSplitter::handle:vertical {
 }
 
 QSplitter::handle:hover {
-    background-color: @ACCENT_HOVER@;
+    background-color: #3B82F6;
 }
 
 QMainWindow::separator {
@@ -254,7 +254,7 @@ QMainWindow::separator {
 }
 
 QMainWindow::separator:hover {
-    background-color: @ACCENT_HOVER@;
+    background-color: #3B82F6;
 }
 
 /* --- 7. Tabs --- */
@@ -294,7 +294,7 @@ QTabBar::tab:selected {
     color: #FFFFFF;
     background-color: #060709;
     border: 1px solid #1E222D;
-    border-bottom: 2px solid @ACCENT_HOVER@;
+    border-bottom: 2px solid #3B82F6;
     font-weight: bold;
 }
 
@@ -324,18 +324,18 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background-color: @ACCENT_PRIMARY@;
+    background-color: #2563EB;
     min-height: 20px;
     border-radius: 3px;
     border: none;
 }
 
 QScrollBar::handle:vertical:hover {
-    background-color: @ACCENT_HOVER@;
+    background-color: #3B82F6;
 }
 
 QScrollBar::handle:vertical:pressed {
-    background-color: @ACCENT_GLOW@;
+    background-color: #60A5FA;
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
@@ -358,18 +358,18 @@ QScrollBar:horizontal {
 }
 
 QScrollBar::handle:horizontal {
-    background-color: @ACCENT_PRIMARY@;
+    background-color: #2563EB;
     min-width: 20px;
     border-radius: 3px;
     border: none;
 }
 
 QScrollBar::handle:horizontal:hover {
-    background-color: @ACCENT_HOVER@;
+    background-color: #3B82F6;
 }
 
 QScrollBar::handle:horizontal:pressed {
-    background-color: @ACCENT_GLOW@;
+    background-color: #60A5FA;
 }
 
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
@@ -396,7 +396,7 @@ QPushButton {
 
 QPushButton:hover {
     background-color: #1A1E26;
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     color: #FFFFFF;
 }
 
@@ -446,7 +446,7 @@ QComboBox {
 }
 
 QComboBox:hover {
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     background-color: #12151B;
 }
 
@@ -478,13 +478,13 @@ QRadioButton::indicator {
 }
 
 QCheckBox::indicator:hover, QRadioButton::indicator:hover {
-    border: 1px solid @ACCENT_HOVER@;
+    border: 1px solid #3B82F6;
     background-color: #12151B;
 }
 
 QCheckBox::indicator:checked, QRadioButton::indicator:checked {
-    background-color: @ACCENT_HOVER@;
-    border: 1px solid @ACCENT_HOVER@;
+    background-color: #3B82F6;
+    border: 1px solid #3B82F6;
 }
 
 /* --- 13. GroupBox & Table Header --- */
@@ -533,6 +533,15 @@ QStatusBar {
 QStatusBar QLabel {
     color: #64748B;
     padding: 0px 4px;
+}
+
+QLabel#BlackSpeakStatusBarBranding {
+    font-family: "Segoe UI";
+    font-size: 9pt;
+    color: #8A8F9D;
+    padding: 0px 10px;
+    background-color: transparent;
+    qproperty-alignment: 'AlignCenter';
 }
 
 /* --- 15. Tools > Options & Dialog Headlines --- */
