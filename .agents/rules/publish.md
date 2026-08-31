@@ -1,4 +1,5 @@
 ---
+trigger: manual
 description: Automated publishing workflow triggered when user specifies publish:<version>
 ---
 
