@@ -174,21 +174,35 @@ QTreeView, QListView, QTableView, QListWidget, QTreeWidget {
 }
 
 QTreeView::item, QListView::item, QListWidget::item {
-    padding: 2px 4px;
-    border-radius: 3px;
-    color: #E0E0E0;
+    padding: 3px 5px;
+    border-radius: 4px;
+    color: #E2E8F0;
     outline: none;
+    border: 1px solid transparent;
 }
 
 QTreeView::item:hover, QListView::item:hover, QListWidget::item:hover {
-    background-color: #12151B;
+    background-color: #141722;
     color: #FFFFFF;
+    border: 1px solid #1E2330;
 }
 
 QTreeView::item:selected, QListView::item:selected, QListWidget::item:selected {
-    background-color: #1A1E26;
-    color: #60A5FA;
-    border: 1px solid #3B82F6;
+    background-color: #1C2230;
+    color: #FFFFFF;
+    border: 1px solid #2D3748;
+}
+
+QTreeView::item:selected:active, QListView::item:selected:active, QListWidget::item:selected:active {
+    background-color: #202738;
+    color: #FFFFFF;
+    border: 1px solid #374151;
+}
+
+QTreeView::item:selected:!active, QListView::item:selected:!active, QListWidget::item:selected:!active {
+    background-color: #141824;
+    color: #E2E8F0;
+    border: 1px solid #1F2430;
 }
 
 QTreeView::branch {

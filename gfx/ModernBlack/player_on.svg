@@ -1,29 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
   <defs>
-    <radialGradient id="glow_grad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#F87171" stop-opacity="0.95"/>
-      <stop offset="65%" stop-color="#EF4444" stop-opacity="0.40"/>
-      <stop offset="100%" stop-color="#DC2626" stop-opacity="0"/>
+    <radialGradient id="bloom_grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#3B82F6" stop-opacity="0.55"/>
+      <stop offset="75%" stop-color="#2563EB" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0"/>
     </radialGradient>
-    <linearGradient id="sphere_grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#F87171"/>
-      <stop offset="45%" stop-color="#EF4444"/>
-      <stop offset="100%" stop-color="#DC2626"/>
+    <linearGradient id="bezel_grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2A303F"/>
+      <stop offset="50%" stop-color="#12151C"/>
+      <stop offset="100%" stop-color="#08090C"/>
     </linearGradient>
-    <linearGradient id="highlight_grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
-      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.15"/>
+    <radialGradient id="core_energy" cx="45%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="18%" stop-color="#60A5FA"/>
+      <stop offset="55%" stop-color="#3B82F6"/>
+      <stop offset="85%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#05070A"/>
+    </radialGradient>
+    <linearGradient id="neon_ring" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="glass_specular" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.90"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.30"/>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
     </linearGradient>
-    <linearGradient id="ring_grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#EF4444"/>
-      <stop offset="100%" stop-color="#DC2626"/>
-    </linearGradient>
+    <radialGradient id="bottom_bounce" cx="50%" cy="100%" r="50%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0"/>
+    </radialGradient>
   </defs>
-  <circle cx="64" cy="64" r="62" fill="url(#glow_grad)"/>
-  <circle cx="64" cy="64" r="49" fill="#0A0C10" stroke="url(#ring_grad)" stroke-width="4"/>
-  <circle cx="64" cy="64" r="43" fill="url(#sphere_grad)"/>
-  <ellipse cx="64" cy="42" rx="28" ry="16" fill="url(#highlight_grad)"/>
-  <circle cx="64" cy="64" r="16" fill="#FFFFFF" opacity="0.35"/>
+  <circle cx="64" cy="64" r="63" fill="url(#bloom_grad)"/>
+  <circle cx="64" cy="64" r="50" fill="url(#bezel_grad)" stroke="#060709" stroke-width="2"/>
+  <circle cx="64" cy="64" r="46" fill="#0A0C10" stroke="url(#neon_ring)" stroke-width="2.5"/>
+  <circle cx="64" cy="64" r="41" fill="url(#core_energy)"/>
+  <ellipse cx="64" cy="94" rx="26" ry="9" fill="url(#bottom_bounce)"/>
+  <path d="M 38,50 C 38,36 48,28 64,28 C 80,28 90,36 90,50 C 78,56 50,56 38,50 Z" fill="url(#glass_specular)"/>
+  <circle cx="58" cy="46" r="6" fill="#FFFFFF" opacity="0.85"/>
 </svg>

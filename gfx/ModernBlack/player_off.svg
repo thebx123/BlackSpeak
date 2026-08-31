@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
   <defs>
-    <linearGradient id="idle_sphere" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="bezel_off" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#202532"/>
+      <stop offset="100%" stop-color="#0A0C10"/>
+    </linearGradient>
+    <radialGradient id="core_off" cx="45%" cy="38%" r="62%">
       <stop offset="0%" stop-color="#1E2330"/>
-      <stop offset="100%" stop-color="#0F1117"/>
-    </linearGradient>
-    <linearGradient id="idle_ring" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#2D3546"/>
-      <stop offset="100%" stop-color="#141720"/>
-    </linearGradient>
-    <linearGradient id="idle_spec" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.15"/>
+      <stop offset="60%" stop-color="#12151D"/>
+      <stop offset="100%" stop-color="#060709"/>
+    </radialGradient>
+    <linearGradient id="spec_off" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.05"/>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
     </linearGradient>
   </defs>
-
-  <!-- Outer Ring Bezel -->
-  <circle cx="64" cy="64" r="49" fill="#060709" stroke="url(#idle_ring)" stroke-width="3"/>
-
-  <!-- Core Idle Sphere -->
-  <circle cx="64" cy="64" r="43" fill="url(#idle_sphere)"/>
-
-  <!-- Top Specular Curve -->
-  <ellipse cx="64" cy="42" rx="28" ry="16" fill="url(#idle_spec)"/>
+  <circle cx="64" cy="64" r="50" fill="url(#bezel_off)" stroke="#060709" stroke-width="2"/>
+  <circle cx="64" cy="64" r="46" fill="#0A0C10" stroke="#161A24" stroke-width="2"/>
+  <circle cx="64" cy="64" r="41" fill="url(#core_off)"/>
+  <path d="M 38,50 C 38,36 48,28 64,28 C 80,28 90,36 90,50 C 78,56 50,56 38,50 Z" fill="url(#spec_off)"/>
 </svg>
