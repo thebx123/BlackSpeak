@@ -1,23 +1,25 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <defs>
-    <linearGradient id="bezel_off" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#202532"/>
-      <stop offset="100%" stop-color="#0A0C10"/>
-    </linearGradient>
-    <radialGradient id="core_off" cx="45%" cy="38%" r="62%">
-      <stop offset="0%" stop-color="#1E2330"/>
-      <stop offset="60%" stop-color="#12151D"/>
-      <stop offset="100%" stop-color="#060709"/>
-    </radialGradient>
-    <linearGradient id="spec_off" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22"/>
-      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.05"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
-    </linearGradient>
-  </defs>
-  <circle cx="64" cy="64" r="50" fill="url(#bezel_off)" stroke="#060709" stroke-width="2"/>
-  <circle cx="64" cy="64" r="46" fill="#0A0C10" stroke="#161A24" stroke-width="2"/>
-  <circle cx="64" cy="64" r="41" fill="url(#core_off)"/>
-  <path d="M 38,50 C 38,36 48,28 64,28 C 80,28 90,36 90,50 C 78,56 50,56 38,50 Z" fill="url(#spec_off)"/>
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="128px" height="128px" viewBox="0 0 128 128" style="enable-background:new 0 0 128 128;" xml:space="preserve">
+<g>
+	<path style="fill:#161922;" d="M64,116.5c-28.949,0-52.5-23.552-52.5-52.5c0-28.949,23.551-52.5,52.5-52.5
+		c28.948,0,52.5,23.551,52.5,52.5C116.5,92.948,92.948,116.5,64,116.5z"/>
+	<path style="fill:#2A303F;" d="M64,14c27.57,0,50,22.43,50,50s-22.43,50-50,50S14,91.57,14,64S36.43,14,64,14 M64,9
+		C33.624,9,9,33.624,9,64c0,30.375,24.624,55,55,55c30.375,0,55-24.625,55-55C119,33.624,94.375,9,64,9L64,9z"/>
+</g>
+<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="64.0034" y1="84.9121" x2="64.0034" y2="14.2183">
+	<stop  offset="0.297" style="stop-color:#161922;"/>
+	<stop  offset="0.5137" style="stop-color:#2A303F;"/>
+	<stop  offset="0.85" style="stop-color:#4A5568;"/>
+	<stop  offset="1" style="stop-color:#718096;"/>
+</linearGradient>
+<path style="fill:url(#SVGID_1_);" d="M107.318,49.564c0,19.532-19.395,35.348-43.318,35.348c-23.925,0-43.312-15.815-43.312-35.348
+	c0-19.516,19.387-35.347,43.312-35.347C87.924,14.218,107.318,30.048,107.318,49.564z"/>
+<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="63.9995" y1="41.1006" x2="63.9995" y2="-28.7822" gradientTransform="matrix(-1 0 0 -1 128.0029 85.0039)">
+	<stop  offset="0.4848" style="stop-color:#161922;"/>
+	<stop  offset="1" style="stop-color:#4A5568;"/>
+</linearGradient>
+<path style="opacity:0.3;fill:url(#SVGID_2_);" d="M21.188,78.844c0-19.301,19.163-34.94,42.814-34.94s42.817,15.64,42.817,34.94
+	c0,19.293-19.166,34.942-42.817,34.942S21.188,98.137,21.188,78.844z"/>
 </svg>
