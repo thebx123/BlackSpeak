@@ -8,6 +8,7 @@
 #include <dwmapi.h>
 #include <wininet.h>
 #include <shellapi.h>
+#include <string>
 #include "qss_template.h"
 #include "version_config.h"
 
@@ -735,33 +736,25 @@ static void SaveConfig() {
 }
 
 static char* GenerateCustomQss(const AccentPalette& pal) {
-    size_t templateLen = strlen(g_qssTemplate);
-    char* result = (char*)malloc(templateLen + 4096);
-    if (!result) return NULL;
-    strcpy_s(result, templateLen + 4096, g_qssTemplate);
+    std::string s = g_qssTemplate;
 
-    const char* tokenPrim = "@ACCENT_PRIMARY@";
-    size_t tokenPrimLen = strlen(tokenPrim);
-    char* pos = NULL;
-    while ((pos = strstr(result, tokenPrim)) != NULL) {
-        memcpy(pos, pal.primary, 7);
-        memmove(pos + 7, pos + tokenPrimLen, strlen(pos + tokenPrimLen) + 1);
+    auto replaceAll = [](std::string& str, const std::string& from, const std::string& to) {
+        if (from.empty()) return;
+        size_t start_pos = 0;
+        while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    };
+
+    replaceAll(s, "@ACCENT_PRIMARY@", pal.primary);
+    replaceAll(s, "@ACCENT_HOVER@", pal.accent);
+    replaceAll(s, "@ACCENT_GLOW@", pal.glow);
+
+    char* result = (char*)malloc(s.length() + 1);
+    if (result) {
+        memcpy(result, s.c_str(), s.length() + 1);
     }
-
-    const char* tokenHov = "@ACCENT_HOVER@";
-    size_t tokenHovLen = strlen(tokenHov);
-    while ((pos = strstr(result, tokenHov)) != NULL) {
-        memcpy(pos, pal.accent, 7);
-        memmove(pos + 7, pos + tokenHovLen, strlen(pos + tokenHovLen) + 1);
-    }
-
-    const char* tokenGlow = "@ACCENT_GLOW@";
-    size_t tokenGlowLen = strlen(tokenGlow);
-    while ((pos = strstr(result, tokenGlow)) != NULL) {
-        memcpy(pos, pal.glow, 7);
-        memmove(pos + 7, pos + tokenGlowLen, strlen(pos + tokenGlowLen) + 1);
-    }
-
     return result;
 }
 
@@ -778,6 +771,7 @@ static void SaveStringToFile(const char* filePath, const char* content) {
 static bool ApplyLiveQtStyleSheet(const char* qssContent) {
     __try {
         HMODULE hCore = GetModuleHandleA("Qt5Core.dll");
+        HMODULE hGui = GetModuleHandleA("Qt5Gui.dll");
         HMODULE hWidgets = GetModuleHandleA("Qt5Widgets.dll");
         if (!hCore || !hWidgets) return false;
 
@@ -785,17 +779,27 @@ static bool ApplyLiveQtStyleSheet(const char* qssContent) {
         typedef void* (*fn_fromUtf8)(void* outStr, const char* str, int size);
         typedef void (*fn_dtorQString)(void* str);
         typedef void (*fn_setStyleSheet)(void* app, const void* qstr);
+        typedef void (*fn_clearPixmapCache)();
 
         fn_instance pInstance = (fn_instance)GetProcAddress(hCore, "?instance@QCoreApplication@@SAPEAV1@XZ");
         fn_fromUtf8 pFromUtf8 = (fn_fromUtf8)GetProcAddress(hCore, "?fromUtf8@QString@@SA?AV1@PEBDH@Z");
         fn_dtorQString pDtorQString = (fn_dtorQString)GetProcAddress(hCore, "??1QString@@QEAA@XZ");
         fn_setStyleSheet pSetStyleSheet = (fn_setStyleSheet)GetProcAddress(hWidgets, "?setStyleSheet@QApplication@@QEAAXAEBVQString@@@Z");
 
+        // 1. Flush Qt's Pixmap & SVG icon cache so updated player_on.svg / icons are reloaded immediately!
+        if (hGui) {
+            fn_clearPixmapCache pClearCache = (fn_clearPixmapCache)GetProcAddress(hGui, "?clear@QPixmapCache@@SAXXZ");
+            if (pClearCache) {
+                pClearCache();
+            }
+        }
+
         if (!pInstance || !pFromUtf8 || !pSetStyleSheet) return false;
 
         void* qApp = pInstance();
         if (!qApp) return false;
 
+        // Force a style change cycle: set empty then set new stylesheet
         void* qstrEmpty[2] = {0};
         pFromUtf8(qstrEmpty, "", 0);
         pSetStyleSheet(qApp, qstrEmpty);
@@ -806,6 +810,12 @@ static bool ApplyLiveQtStyleSheet(const char* qssContent) {
             pFromUtf8(qstrNew, qssContent, (int)strlen(qssContent));
             pSetStyleSheet(qApp, qstrNew);
             if (pDtorQString) pDtorQString(qstrNew);
+        }
+
+        // 2. Force full redraw on TeamSpeak windows and all child widgets
+        HWND topTS3 = FindWindowA("Qt5QWindowIcon", NULL);
+        if (topTS3 && IsWindow(topTS3)) {
+            RedrawWindow(topTS3, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME | RDW_UPDATENOW);
         }
 
         return true;

@@ -1,6 +1,5 @@
-
 /*
- * TeamSpeak 3 Modern Black Qt StyleSheet
+ * TeamSpeak 3 BlackSpeak Qt StyleSheet
  * Designed by Coretify Studio
  *
  * Global overrides for QPalette::ColorRole values:
@@ -409,6 +408,16 @@ QPushButton:disabled {
     border: 1px solid #141720;
 }
 
+QPushButton:default {
+    background-color: #2563EB;
+    border: 1px solid #3B82F6;
+    color: #FFFFFF;
+}
+
+QPushButton:default:hover {
+    background-color: #3B82F6;
+}
+
 /* --- 10. Menus --- */
 QMenu {
     background-color: #0A0C10;
@@ -425,7 +434,7 @@ QMenu::item {
 
 QMenu::item:selected {
     background-color: #161A22;
-    color: #FFFFFF;
+    color: #60A5FA;
 }
 
 QMenu::separator {
@@ -453,7 +462,7 @@ QComboBox QAbstractItemView {
     color: #FFFFFF;
     border: 1px solid #1E222D;
     selection-background-color: #1A1E26;
-    selection-color: #FFFFFF;
+    selection-color: #60A5FA;
 }
 
 /* --- 12. CheckBox & RadioButton --- */
@@ -485,7 +494,42 @@ QCheckBox::indicator:checked, QRadioButton::indicator:checked {
     border: 1px solid #3B82F6;
 }
 
-/* --- 13. GroupBox & Table Header --- */
+/* --- 13. Sliders & Progress Bars --- */
+QSlider::groove:horizontal {
+    border: none;
+    height: 4px;
+    background: #1E222D;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #2563EB;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #3B82F6;
+    border: 1px solid #FFFFFF;
+    width: 12px;
+    margin-top: -4px;
+    margin-bottom: -4px;
+    border-radius: 6px;
+}
+
+QProgressBar {
+    background-color: #0F1117;
+    border: 1px solid #1E222D;
+    border-radius: 4px;
+    text-align: center;
+    color: #FFFFFF;
+}
+
+QProgressBar::chunk {
+    background-color: #2563EB;
+    border-radius: 3px;
+}
+
+/* --- 14. GroupBox & Table Header --- */
 QGroupBox {
     border: 1px solid #1E222D;
     border-radius: 4px;
@@ -513,11 +557,11 @@ QHeaderView::section {
     font-weight: 500;
 }
 
-/* --- 14. ToolTip & StatusBar --- */
+/* --- 15. ToolTip & StatusBar --- */
 QToolTip {
     background-color: #0A0C10;
     color: #FFFFFF;
-    border: 1px solid #2A303F;
+    border: 1px solid #2563EB;
     border-radius: 4px;
     padding: 4px 8px;
 }
@@ -533,7 +577,16 @@ QStatusBar QLabel {
     padding: 0px 4px;
 }
 
-/* --- 15. Tools > Options & Dialog Headlines --- */
+QLabel#BlackSpeakStatusBarBranding {
+    font-family: "Segoe UI";
+    font-size: 9pt;
+    color: #8A8F9D;
+    padding: 0px 10px;
+    background-color: transparent;
+    qproperty-alignment: 'AlignCenter';
+}
+
+/* --- 16. Tools > Options & Dialog Headlines --- */
 QWidget#HeadlineLabel {
     background-color: #0A0C10;
     border-bottom: 1px solid #1E222D;
@@ -558,10 +611,9 @@ QLabel#bookmarksBanner, QLabel#identitiesBanner, QLabel#accountLoginBanner, QLab
     font-weight: bold;
 }
 
-/* --- 16. Host Message Popup Dialog --- */
+/* --- 17. Host Message Popup Dialog --- */
 QDialog#HostMessageDialog, QDialog[windowTitle="Host Message"], QDialog[windowTitle="Hostmessage"] {
     background-color: #0A0C10;
     min-width: 520px;
     min-height: 280px;
 }
-
